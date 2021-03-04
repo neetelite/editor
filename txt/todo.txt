@@ -1,0 +1,2 @@
+Edit buffer movement functions so it doesn't go over the end of the line
+Change the content shift to be like the line shift
