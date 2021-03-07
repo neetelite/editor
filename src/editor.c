@@ -161,7 +161,7 @@ content_char_draw(struct Content *content, u32 char_index, v4 color)
 	struct Rec2 rec = REC2(min, max);
 	struct Box2 box = box2_from_rec2(rec);
 
-	v3 pos = V3(box.pos.x, box.pos.y, canvas->z[layer_text]);
+	v3 pos = V3(box.pos.x, box.pos.y, canvas->z[layer_content_text]);
 	v3 dim = V3(box.dim.x, box.dim.y, 0.0);
 	mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, V3_ZERO));
 	gl_uniform_mat4(program->location_mvp, mvp);
@@ -200,7 +200,7 @@ panel_content_draw(struct Panel *panel, struct Content *content)
 		struct Rec2 rec = REC2(min, max);
 		struct Box2 box = box2_from_rec2(rec);
 
-		v3 pos = V3(box.pos.x, box.pos.y, canvas->z[layer_text]);
+		v3 pos = V3(box.pos.x, box.pos.y, canvas->z[layer_content_text]);
 		v3 dim = V3(box.dim.x, box.dim.y, 0.0);
 		mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, V3_ZERO));
 		gl_uniform_mat4(program->location_mvp, mvp);
@@ -209,7 +209,7 @@ panel_content_draw(struct Panel *panel, struct Content *content)
 		gl_vao_draw(0, triangle_count * 3, GL_TRIANGLES);
 	}
 
- gl_texture_unbind(GL_TEXTURE_2D);
+	gl_texture_unbind(GL_TEXTURE_2D);
 	gl_program_unbind();
 }
 
@@ -335,6 +335,7 @@ line_content_add_end(struct Position *pos)
 	struct Content *last = line_content_get_last(pointer.line);
 	struct Content *end = &pointer.line->contents[pointer.line->content_count];
 	*end = content_new(last->id+1, content_char_end(last), 0);
+	printf("HERE\n");
 
 	pointer.line->content_count += 1;
 
@@ -416,25 +417,55 @@ panel_line_number_draw(struct Panel *panel, struct Line *line)
 	char content[5];
 
 	snprintf(content, 5, "%d", line->id+1);
-	cstr_draw(content, (line->id/10)+1, pos, &editor->align_buffer, canvas->z[layer_text], V4_COLOR_BLUE);
+	cstr_draw(content, (line->id/10)+1, pos, &editor->align_buffer, canvas->z[layer_content_text], V4_COLOR_BLUE);
 }
 
 void
 panel_line_draw(struct Panel *panel, struct Line *line)
 {
+	#if BUILD_DEBUG
+	f32 y = HEIGHT - (editor->font.height * (line->id + 1));
+	f32 ml = editor->margin_left;
+	f32 nw = editor->line_number_width;
+	#endif
+
 	panel_line_number_draw(panel, line);
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
 		struct Content *content = &line->contents[i];
 
-		#if 0
-		/* TODO: Make this automatically update */
-		struct Visual *visual = content->visual;
-		v2 start = visual[0].rec.start;
-		v2 end = visual[content->char_count-1].rec.end;
-		struct Rec2 content_rec = REC2(start, end);
+		#if BUILD_DEBUG
+		if(content->char_count != 0)
+		{
+			#if 0
+			printf("Content ID: %d\n", content->id);
+			printf("Char c: %d\n", content->char_count);
+			#endif
 
-		rec2_draw(&content_rec, editor->camera.transform, 1.0, V4_COLOR_RED);
+			v4 color = V4_ZERO;
+			if(i % 2 == 0) color = v4_mf(V4_COLOR_GREEN, 0.5);
+			else color = v4_mf(V4_COLOR_BLUE, 0.5);
+
+			/* TODO: Make this automatically update */
+			struct Visual *visual = content->visual;
+			v2 start = V2(visual[0].rec.start.x +ml+nw, y);
+			v2 end = V2_ZERO;
+
+			if(line->content_count > 1 && i < line->content_count - 1)
+			{
+				struct Content *content_next = &line->contents[i+1];
+				struct Visual *visual_next = content_next->visual;
+				end = V2(visual_next[0].rec.start.x + ml+nw, y+editor->font.height);
+			}
+			else
+			{
+				end = V2(visual[content->char_count-1].rec.end.x +ml+nw, y+editor->font.height);
+			}
+
+			struct Rec2 content_rec = REC2(start, end);
+
+			rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
+		}
 		#endif
 
 		panel_content_draw(panel, content);
@@ -753,6 +784,7 @@ panel_line_input(struct Panel *panel, char c)
 	/* Full */
 	else if(content_is_full(pointer.content))
 	{
+		printf("FULL\n");
 		u32 char_index = content_char_index_from_pos(pointer.content, panel->pos.x);
 		if(char_index == 0)
 		{
@@ -799,7 +831,7 @@ panel_bar_draw(struct Panel *panel)
 {
 	/* Edit Mode */
 	cstr_draw(edit_mode_str_table[panel->edit_mode], EDIT_MODE_STR_SIZE,
-		  V2(0, 0), &editor->align_bar, canvas->z[layer_text], V4_COLOR_WHITE);
+		  V2(0, 0), &editor->align_bar, canvas->z[layer_content_text], V4_COLOR_WHITE);
 }
 
 void
@@ -1227,7 +1259,7 @@ editor_draw(void)
 	#if 0
 	cstr_draw("TEST", 4, V2(200, 200), &editor->align_bar, canvas->z[layer_cursor], V4_COLOR_WHITE);
 	struct Rec2 rec = REC2(V2(200, 200), V2(300, 300));
-	rec2_draw(&rec, editor->camera.transform, canvas->z[layer_text], V4_COLOR_RED);
+	rec2_draw(&rec, editor->camera.transform, canvas->z[layer_content_text], V4_COLOR_RED);
 	#endif
 }
 

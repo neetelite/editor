@@ -10,7 +10,8 @@ struct AppMemory
 enum Layer
 {
 	layer_background,
-	layer_text,
+	layer_content_background,
+	layer_content_text,
 	layer_cursor,
 	layer_cursor_text,
 
