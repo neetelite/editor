@@ -1,4 +1,4 @@
-#version 330 core
+#version 300 es
 
 uniform vec4 u_color;
 out vec4 o_frag_color;

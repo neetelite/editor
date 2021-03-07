@@ -9,10 +9,12 @@
 
 #define FPS_MAX 60
 
-#include "../../../library/standard.h"
-#include "../../../library/base.h"
-#include "../../../library/platform.h"
-#include "../../../library/graphics.h"
+#include <linux/limits.h>
+
+#include "../../lib/standard.h"
+#include "../../lib/base.h"
+#include "../../lib/platform.h"
+#include "../../lib/graphics.h"
 
 #define LOADER_WHITELIST
 #define LOADER_LIST_OBJ

@@ -209,7 +209,7 @@ panel_content_draw(struct Panel *panel, struct Content *content)
 		gl_vao_draw(0, triangle_count * 3, GL_TRIANGLES);
 	}
 
-	gl_texture_unbind(GL_TEXTURE_2D);
+ gl_texture_unbind(GL_TEXTURE_2D);
 	gl_program_unbind();
 }
 
@@ -426,6 +426,17 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
 		struct Content *content = &line->contents[i];
+
+		#if 0
+		/* TODO: Make this automatically update */
+		struct Visual *visual = content->visual;
+		v2 start = visual[0].rec.start;
+		v2 end = visual[content->char_count-1].rec.end;
+		struct Rec2 content_rec = REC2(start, end);
+
+		rec2_draw(&content_rec, editor->camera.transform, 1.0, V4_COLOR_RED);
+		#endif
+
 		panel_content_draw(panel, content);
 	}
 }
@@ -477,9 +488,9 @@ panel_cursor_move_up(struct Panel *panel)
 	panel->pos.y -= 1;
 	pointer.line = buffer_line_get_by_id(pointer.buffer, panel->pos.y);
 
-	if(panel->pos.x_max_active)
+	if(panel->pos.x_min_active)
 	{
-		if(panel->pos.x_max > pointer.line->char_count)
+		if(panel->pos.x_min > pointer.line->char_count)
 		{
 			panel->pos.c = EOL;
 			panel->pos.i = EOL;
@@ -489,7 +500,7 @@ panel_cursor_move_up(struct Panel *panel)
 		}
 		else
 		{
-			panel->pos.x = panel->pos.x_max;
+			panel->pos.x = panel->pos.x_min;
 
 			struct Content *content = line_content_get_by_char_pos(pointer.line, panel->pos.x);
 			if(content == NULL)
@@ -506,13 +517,13 @@ panel_cursor_move_up(struct Panel *panel)
 	}
 	else
 	{
-		if(panel->pos.x_max > pointer.line->char_count)
+		if(panel->pos.x_min > pointer.line->char_count)
 		{
 			panel->pos.c = EOL;
 			panel->pos.i = EOL;
 
-			panel->pos.x_max = panel->pos.x;
-			panel->pos.x_max_active = true;
+			panel->pos.x_min = panel->pos.x;
+			panel->pos.x_min_active = true;
 
 			struct Content *last = line_content_get_last(pointer.line);
 			panel->pos.x = content_char_end(last);
@@ -541,10 +552,10 @@ panel_cursor_move_down(struct Panel *panel)
 		panel->pos.c = EOL;
 		panel->pos.i = EOL;
 
-		if(panel->pos.x_max_active == false)
+		if(panel->pos.x_min_active == false)
 		{
-			panel->pos.x_max = panel->pos.x;
-			panel->pos.x_max_active = true;
+			panel->pos.x_min = panel->pos.x;
+			panel->pos.x_min_active = true;
 		}
 
 		struct Content *last = line_content_get_last(pointer.line);
@@ -552,9 +563,9 @@ panel_cursor_move_down(struct Panel *panel)
 	}
 	else
 	{
-		if(panel->pos.x_max_active == true)
+		if(panel->pos.x_min_active == true)
 		{
-			panel->pos.x = panel->pos.x_max;
+			panel->pos.x = panel->pos.x_min;
 		}
 		else
 		{
@@ -567,7 +578,7 @@ panel_cursor_move_down(struct Panel *panel)
 void
 panel_cursor_move_right(struct Panel *panel)
 {
-	panel->pos.x_max_active = false;
+	panel->pos.x_min_active = false;
 
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 	if(panel->pos.x > pointer.line->char_count-1) return;
@@ -596,7 +607,7 @@ panel_cursor_move_right(struct Panel *panel)
 void
 panel_cursor_move_left(struct Panel *panel)
 {
-	panel->pos.x_max_active = false;
+	panel->pos.x_min_active = false;
 
 	if(panel->pos.x <= 0) return;
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
@@ -857,8 +868,9 @@ editor_init(void)
 	editor = &app->editor;
 
 	/* Settings */
-	font_init(&editor->font, "ibm.ttf", "IBM Plex Mono", 20, "ascii");
-	//font_init(&editor->font, "arial.ttf", "Arial", 20, "ascii");
+	font_init(&editor->font, "ibm.ttf", "IBM Plex Mono", 24, "ascii");
+	//font_init(&editor->font, "arial.ttf", "Arial", 24, "ascii");
+	//font_init(&editor->font, "roboto.ttf", "Arial", 24, "ascii");
 
 	editor->align_bar    = ALIGN("left", "bottom");
 	editor->align_buffer = ALIGN("left", "top");
@@ -1072,7 +1084,7 @@ panel_cursor_move_word_next(struct Panel *panel)
 }
 
 void
-panel_line_add_bellow(struct Panel *panel)
+panel_line_add_below(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
@@ -1088,6 +1100,8 @@ panel_line_add_bellow(struct Panel *panel)
 
 	panel_cursor_move_down(panel);
 	panel_edit_mode_change(panel, edit_mode_insert);
+
+	panel->pos.x_min_active = false;
 }
 
 void
@@ -1098,53 +1112,62 @@ panel_input(struct Panel *panel)
 	case edit_mode_normal:
 	{
 		/* Modes */
-		if(key_press('i')) panel_edit_mode_change(panel, edit_mode_insert);
-		if(key_press('I'))
+		if(key_press(key_i))
 		{
-			panel_cursor_move_start(panel);
-			panel_edit_mode_change(panel, edit_mode_insert);
+			if(key_shift_down())
+			{
+				panel_cursor_move_start(panel);
+				panel_edit_mode_change(panel, edit_mode_insert);
+			}
+			else
+			{
+				panel_edit_mode_change(panel, edit_mode_insert);
+			}
 		}
 
-		if(key_press('a'))
+		if(key_press(key_a))
 		{
-			panel_cursor_move_right(panel);
-			panel_edit_mode_change(panel, edit_mode_insert);
-		}
-
-		if(key_press('A'))
-		{
-			panel_cursor_move_end(panel);
-			panel_edit_mode_change(panel, edit_mode_insert);
+			if(key_shift_down())
+			{
+				panel_cursor_move_end(panel);
+				panel_edit_mode_change(panel, edit_mode_insert);
+			}
+			else
+			{
+				panel_cursor_move_right(panel);
+				panel_edit_mode_change(panel, edit_mode_insert);
+			}
 		}
 
 		/* Movement */
-		if(key_press('k')) panel_cursor_move_up(panel);
-		if(key_press('j')) panel_cursor_move_down(panel);
-		if(key_press('h')) panel_cursor_move_left(panel);
-		if(key_press('l')) panel_cursor_move_right(panel);
+		/* TODO: These characters in uppercase do different things */
+		if(key_press(key_k)) panel_cursor_move_up(panel);
+		if(key_press(key_j)) panel_cursor_move_down(panel);
+		if(key_press(key_h)) panel_cursor_move_left(panel);
+		if(key_press(key_l)) panel_cursor_move_right(panel);
 
-		if(key_press('s')) panel_cursor_move_start(panel);
-		if(key_press('e')) panel_cursor_move_end(panel);
+		if(key_press(key_s)) panel_cursor_move_start(panel);
+		if(key_press(key_e)) panel_cursor_move_end(panel);
 
-		if(key_press('w')) panel_cursor_move_word_next(panel);
-		if(key_press('b')) panel_cursor_move_word_previous(panel);
+		if(key_press(key_w)) panel_cursor_move_word_next(panel);
+		if(key_press(key_b)) panel_cursor_move_word_previous(panel);
 
 		/* Lines */
-		if(key_press('o')) panel_line_add_bellow(panel);
+		if(key_press(key_o)) panel_line_add_below(panel);
 		//if(key_press('O')) buffer_add_line_above(buffer);
 
 	} break;
 	case edit_mode_insert:
 	{
 		/* Return to normal mode */
-		if(key_press(KEY_ESCAPE)) panel_edit_mode_change(panel, edit_mode_normal);
+		if(key_press(key_escape)) panel_edit_mode_change(panel, edit_mode_normal);
 
-		/* Type test */
-		for(u32 i = ' '; i < '~'; ++i)
+		for(u32 key = 0; key < KEY_MAX; ++key)
 		{
-			if(key_press(i))
+			if(key_press(key))
 			{
-				panel_line_input(panel, i);
+				char c = ascii_from_key(key);
+				if(c != '\0') panel_line_input(panel, c);
 			}
 		}
 	} break;

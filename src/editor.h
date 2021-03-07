@@ -15,7 +15,7 @@ struct Content
 	/* Per line buffer */
 	u32 id;
 
-	u32 char_start;
+	u32 char_start; /* x in line */
 	u32 char_count;
 
 	/* NOTE: We have different sizes because this structure can split in two */
@@ -57,8 +57,8 @@ struct Position
 	i64 c; /* content id */
 	i64 i; /* content index */
 
-	bool x_max_active;
-	u32 x_max;;
+	bool x_min_active;
+	u32 x_min;;
 };
 
 struct Range

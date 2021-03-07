@@ -1,4 +1,4 @@
-#version 330 core
+#version 300 es
 
 layout (location = 0) in vec4 i_pos;
 out vec2 v_tex;

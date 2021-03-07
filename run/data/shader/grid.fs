@@ -1,4 +1,4 @@
-#version 330 core
+#version 300 es
 
 #define M_PI 3.1415927
 

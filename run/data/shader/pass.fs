@@ -1,4 +1,4 @@
-#version 330 core
+#version 300 es
 
 #define LIGHTING 1
 #define POINT_LIGHT 0

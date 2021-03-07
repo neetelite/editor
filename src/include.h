@@ -4,6 +4,11 @@
 #include "gl.h"
 
 #include "text.h"
+
+//#include "content.h"
+//#include "line.h"
+//#include "buffer.h"
+//#include "panel.h"
 #include "editor.h"
 #include "editor_utility.h"
 
