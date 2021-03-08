@@ -1,0 +1,2 @@
+Inserting text that is not at the end of the line create a new content regardless
+Inserting a line between two other lines clears the one bellow
