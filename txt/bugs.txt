@@ -1,2 +1,2 @@
-Inserting text that is not at the end of the line create a new content regardless
+Inserting text in a NOT empty content which is greater than 0 doesn't shift, instead it replaces characters?
 Inserting a line between two other lines clears the one bellow

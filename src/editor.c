@@ -337,7 +337,9 @@ line_content_shift_right(struct Position *pos, u32 n)
 
 	for(u32 content_id = pointer.line->content_count+n-1; content_id > pos->c; --content_id)
 	{
-		pointer.line->contents[content_id] = pointer.line->contents[content_id-n];
+		u32 id_from = content_id - n;
+		u32 id_to   = content_id;
+		pointer.line->contents[id_to] = pointer.line->contents[id_from];
 	}
 }
 
@@ -404,7 +406,9 @@ line_content_add_between(struct Position *pos)
 	struct PositionPointer pointer = position_pointer_from_position(pos);
 	ASSERT(content_is_full(pointer.content) == true);
 
-	if(pointer.line->content_count+2 > pointer.line->content_max)
+	/* NOTE: if content_max = 1, we need to do this twice */
+	//if(pointer.line->content_count+2 > pointer.line->content_max)
+	while(pointer.line->content_count+2 > pointer.line->content_max)
 	{
 		line_grow(pointer.line);
 		pointer = position_pointer_from_position(pos);
@@ -419,26 +423,29 @@ line_content_add_between(struct Position *pos)
 		pointer = position_pointer_from_position(pos);
 	}
 
-	struct Content *before = pointer.content;
-	before->id = pos->c;
-	before->char_start = pointer.content->char_start;
-	before->char_count = pos->i;
-	before->size = before->char_count;
-	before->size_alloc = pointer.content->size_alloc;
-	before->data = pointer.content->data;
-	before->visual = pointer.content->visual;
+	struct Content *left = pointer.content+0;
+	struct Content *middle = pointer.content+1;
+	struct Content *right = pointer.content+2;
 
-	struct Content *between = pointer.content+1;
-	*between = content_new(pos->c + 1, content_char_end(before), 0);
+	u32 initial_size = left->size;
 
-	struct Content *after = pointer.content+2;
-	after->id = before->id + 2;
-	after->char_start = between->char_start;
-	after->char_count = before->size_alloc - before->char_count;
-	after->size = after->char_count;
-	after->size_alloc = before->size_alloc;
-	after->data = before->data + before->size;
-	after->visual = before->visual + before->size;
+	left->id = pos->c;
+	left->char_start = left->char_start;
+	left->char_count = pos->i;
+	left->size = left->char_count;
+	left->size_alloc = left->size_alloc;
+	left->data = left->data;
+	left->visual = left->visual;
+
+	*middle = content_new(pos->c + 1, content_char_end(left), 0);
+
+	right->id = left->id + 2;
+	right->char_start = middle->char_start;
+	right->char_count = initial_size - left->char_count;
+	right->size = right->char_count;
+	right->size_alloc = left->size_alloc;
+	right->data = left->data + left->size;
+	right->visual = left->visual + left->size;
 
 	pointer.line->content_count += 2;
 
@@ -479,7 +486,7 @@ void
 panel_line_draw(struct Panel *panel, struct Line *line)
 {
 
-	#if PRINT_CONTENT_BACKGROUND
+	#if DRAW_CONTENT_BACKGROUND
 	f32 y = HEIGHT - (editor->font.height * (line->id + 1));
 	f32 ml = editor->margin_left;
 	f32 nw = editor->line_number_width;
@@ -490,19 +497,23 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 	{
 		struct Content *content = &line->contents[i];
 
-		#if PRINT_CONTENT_BACKGROUND
+		#if DRAW_CONTENT_BACKGROUND
 		if(content->char_count != 0)
 		{
 			v4 color = V4_ZERO;
+			if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
+			else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
+			else color = V4_COLOR_RED; /* SPLIT */
+
 			if(line->id % 2 == 0)
 			{
-			    if(i % 2 == 0) color = v4_mf(V4_COLOR_GREEN, 0.5);
-			    else color = v4_mf(V4_COLOR_GREEN, 0.3);
+			    if(i % 2 == 0) color = v4_mf(color, 0.5);
+			    else color = v4_mf(color, 0.3);
 			}
 			else
 			{
-			    if(i % 2 == 0) color = v4_mf(V4_COLOR_BLUE, 0.5);
-			    else color = v4_mf(V4_COLOR_BLUE, 0.3);
+			    if(i % 2 == 0) color = v4_mf(color, 0.3);
+			    else color = v4_mf(color, 0.5);
 			}
 
 			/* TODO: Put this in shift update */
@@ -831,14 +842,22 @@ panel_cursor_draw(struct Panel *panel)
 void
 panel_line_input(struct Panel *panel, char c)
 {
+	/* NOTE: This function uses a goto to make it easier to read */
+
+	/* TODO CLEAN: The lower part of the function can be made more readable (remove the add_before) */
+
 	if(panel->pos.c == EOL)
 	{
+		/* Add at the start */
 		if(panel->pos.x == 0) line_content_add_start(&panel->pos);
+
+		/* Add at the end */
 		else
 		{
 			struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 			struct Content *content_last = line_content_get_last(pointer.line);
 
+			/* Check weather or not we can use the last content instead of creating a new one */
 			u32 size_end = content_size_end(content_last);
 			if(panel->pos.x >= size_end) line_content_add_end(&panel->pos);
 			else
@@ -847,17 +866,40 @@ panel_line_input(struct Panel *panel, char c)
 				panel->pos.i = content_last->char_count;
 			}
 		}
-	}
-	else
-	{
-		struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
-		if(content_is_full(pointer.content))
-		{
-			if(panel->pos.i == 0) line_content_add_before(&panel->pos);
-			else line_content_add_between(&panel->pos);
-		}
+		goto insert_character;
 	}
 
+	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
+	if(content_is_full(pointer.content))
+	{
+		/* Add before the content */
+		if(panel->pos.i == 0)
+		{
+			/* Check weather we can use a previous content instead of creating a new one */
+			if(panel->pos.c != 0)
+			{
+				    struct Content *content_prev =
+					    line_content_get_previous(pointer.line, pointer.content);
+
+				    u32 size_end = content_size_end(content_prev);
+				    if(panel->pos.x < size_end)
+				    {
+					    panel->pos.c = content_prev->id;
+					    panel->pos.i = content_prev->char_count;
+				    }
+				    else line_content_add_before(&panel->pos);
+			}
+
+			/* Otherwise just make a new one */
+			else line_content_add_before(&panel->pos);
+
+		}
+
+		/* Add in the middle of the content, my spliting the content in two */
+		else line_content_add_between(&panel->pos);
+	}
+
+insert_character:
 	line_content_input(&panel->pos, c);
 	panel_cursor_move_right(panel);
 }
@@ -1000,11 +1042,11 @@ editor_init(void)
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
 	#if 0
-	editor->content_min = 256;
-	editor->content_max = 256;
+	editor->content_min = 128;
+	editor->content_max = 128;
 	#else
-	editor->content_min = 4;
-	editor->content_max = 4;
+	editor->content_min = 8;
+	editor->content_max = 8;
 	#endif
 
 	/* Camera */
