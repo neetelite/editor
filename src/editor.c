@@ -98,6 +98,8 @@ content_data_shift_update(struct Position *position)
 
 	v2 pos = V2_ZERO;
 	u32 codepoint_previous;
+
+	/* Get the previous codepoint and the beginning of the last character */
 	if(position->i == 0)
 	{
 		if(position->c == 0)
@@ -159,9 +161,11 @@ void
 content_data_shift_right(struct Position *pos, u32 n)
 {
 	struct PositionPointer pointer = position_pointer_from_position(pos);
-	for(u32 i = pointer.content->char_count+n-1; i > pos->x; --i)
+	for(u32 i = pointer.content->char_count+n-1; i > pos->i; --i)
 	{
-		pointer.content->data[i] = pointer.content->data[i-n];
+		u32 id_from = i-n;
+		u32 id_to = i;
+		pointer.content->data[id_to] = pointer.content->data[id_from];
 	}
 }
 
