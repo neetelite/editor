@@ -1,3 +1,12 @@
+#ifdef EOF
+#undef EOF
+#endif
+
+#define EOF     -1
+#define EOF_PTR NULL
+#define EOL     -1
+#define EOL_PTR NULL
+
 u32 word_tokens_skip[] = {' ', '_', '.'};
 u32 word_tokens_stop[] = {'_', '.'};
 
@@ -50,10 +59,10 @@ struct Screen
 struct Position
 {
 	i64 b; /* buffer id */
-	i64 y; /* line id y, can be EOF */
-	i64 c; /* content id, can be EOL */
+	i64 y; /* line id y */
+	i64 x; /* line pos x */
 
-	i64 x; /* line pos x, can be EOL */
+	i64 c; /* content id, can be EOL */
 	i64 i; /* content index, can be EOL */
 
 	bool x_min_active;

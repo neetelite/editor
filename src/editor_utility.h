@@ -1,6 +1,7 @@
 /* Content */
 u32 content_char_index_from_pos(struct Content *content, u32 char_pos);
 u32 content_char_end(struct Content *content);
+u32 content_size_end(struct Content *content);
 bool content_char_index_is_end(struct Content *content, u32 char_index);
 bool content_char_pos_is_end(struct Content *content, u32 char_pos);
 bool content_is_empty(struct Content *content);

@@ -17,6 +17,15 @@ content_char_end(struct Content *content)
 	return(result);
 }
 
+u32
+content_size_end(struct Content *content)
+{
+	u32 result = 0;
+	if(content == NULL) result = 0;
+	else result = content->char_start + content->size;
+	return(result);
+}
+
 bool
 content_char_index_is_end(struct Content *content, u32 char_index)
 {
@@ -62,6 +71,9 @@ content_is_full(struct Content *content)
 struct Content *
 line_content_get_by_id(struct Line *line, i32 content_id)
 {
+	ASSERT(content_id >= 0);
+
+	if(content_id == 0) return(NULL);
 	ASSERT(content_id < line->content_count);
 
 	struct Content *result = NULL;
@@ -74,7 +86,8 @@ struct Content *
 line_content_get_first(struct Line *line)
 {
 	struct Content *result = NULL;
-	result = line_content_get_by_id(line, 0);
+	if(line->content_count == 0) result = NULL;
+	else result = line_content_get_by_id(line, 0);
 	return(result);
 }
 
@@ -147,7 +160,7 @@ line_content_get_by_char_pos(struct Line *line, u32 char_pos)
 {
 	ASSERT(line != NULL);
 	if(line->contents == NULL) return(NULL);
-	if(line->char_count == char_pos) return(line_content_get_last(line));
+	if(line->char_count <= char_pos) return(NULL);
 
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
