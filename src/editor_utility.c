@@ -60,7 +60,7 @@ content_is_full(struct Content *content)
 
 /* Line */
 struct Content *
-line_content_get_by_id(struct Line *line, u32 content_id)
+line_content_get_by_id(struct Line *line, i32 content_id)
 {
 	ASSERT(content_id < line->content_count);
 
@@ -69,21 +69,6 @@ line_content_get_by_id(struct Line *line, u32 content_id)
 	return(result);
 }
 
-struct Content *
-line_content_get_by_char_pos(struct Line *line, u32 char_pos)
-{
-	struct Content *result = NULL;
-	for(u32 i = 0; i < line->content_count; ++i)
-	{
-		struct Content *content = &line->contents[i];
-		if(content->char_start <= char_pos && char_pos < content_char_end(content))
-		{
-			result = content;
-			break;
-		}
-	}
-	return(result);
-}
 
 struct Content *
 line_content_get_first(struct Line *line)
@@ -155,6 +140,23 @@ line_content_get_next(struct Line *line, struct Content *content)
 	}
 
 	return(result);
+}
+
+struct Content *
+line_content_get_by_char_pos(struct Line *line, u32 char_pos)
+{
+	ASSERT(line != NULL);
+	if(line->contents == NULL) return(NULL);
+	if(line->char_count == char_pos) return(line_content_get_last(line));
+
+	for(u32 i = 0; i < line->content_count; ++i)
+	{
+		struct Content *content = &line->contents[i];
+		if(content->char_start <= char_pos && char_pos < content_char_end(content))
+		{
+			return(content);
+		}
+	}
 }
 
 bool
@@ -262,7 +264,7 @@ position_line_get_next(struct Panel *panel)
 
 /* Buffer */
 struct Line *
-buffer_line_get_by_id(struct Buffer *buffer, u32 line_id)
+buffer_line_get_by_id(struct Buffer *buffer, i32 line_id)
 {
 	ASSERT(line_id < buffer->line_count);
 
@@ -273,7 +275,7 @@ buffer_line_get_by_id(struct Buffer *buffer, u32 line_id)
 
 /* Editor */
 struct Buffer *
-editor_buffer_get_by_id(u32 buffer_id)
+editor_buffer_get_by_id(i32 buffer_id)
 {
 	ASSERT(buffer_id < editor->buffer_count);
 

@@ -1,6 +1,3 @@
-#define EOL -1
-#define EOL_PTR NULL
-
 u32 word_tokens_skip[] = {' ', '_', '.'};
 u32 word_tokens_stop[] = {'_', '.'};
 
@@ -37,6 +34,8 @@ struct Line
 
 struct Buffer
 {
+	u32 id;
+
 	u32 line_count;
 	u32 line_max;
 	struct Line *lines;
@@ -44,21 +43,21 @@ struct Buffer
 
 struct Screen
 {
-	/* Data about what is visible and what is not */
+	/* Data about the area that is visible */
 	i32 _ignore;
 };
 
 struct Position
 {
 	i64 b; /* buffer id */
-	u64 y; /* line id y */
-	u64 x; /* line pos x */
+	i64 y; /* line id y, can be EOF */
+	i64 c; /* content id, can be EOL */
 
-	i64 c; /* content id */
-	i64 i; /* content index */
+	i64 x; /* line pos x, can be EOL */
+	i64 i; /* content index, can be EOL */
 
 	bool x_min_active;
-	u32 x_min;;
+	u32 x_min;
 };
 
 struct Range
@@ -91,7 +90,7 @@ struct Panel
 
 struct Window
 {
-	u32 panel_id;
+	u32 panel_id; /* Same as buffer, differente panels per window */
 	u32 panel_count;
 	struct Panel *panels;
 };

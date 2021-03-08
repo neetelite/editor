@@ -1,5 +1,7 @@
+#ifdef OS_LINUX
 #pragma GCC diagnostic ignored "-Wmissing-braces"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
 
 #define Z_UP_RH
 
@@ -9,12 +11,14 @@
 
 #define FPS_MAX 60
 
+#ifdef OS_LINUX
 #include <linux/limits.h>
+#endif
 
-#include "../../lib/standard.h"
-#include "../../lib/base.h"
-#include "../../lib/platform.h"
-#include "../../lib/graphics.h"
+#include "../../library/standard.h"
+#include "../../library/base.h"
+#include "../../library/platform.h"
+#include "../../library/graphics.h"
 
 #define LOADER_WHITELIST
 #define LOADER_LIST_OBJ
@@ -41,8 +45,8 @@ main(void)
 	os_opengl_init();
 
 	/* Timer */
-	struct TimeLimiter limiter = {0};
-	time_limiter_init(&limiter, TIME_NS_FROM_S(1) / FPS_MAX);
+	//struct TimeLimiter limiter = {0};
+	//time_limiter_init(&limiter, TIME_NS_FROM_S(1) / FPS_MAX);
 
 	/* Input */
 	os_input_init();
@@ -55,8 +59,8 @@ main(void)
 		os_render();
 
 		/* TIMER TODO */
-		time_limiter_tick(&limiter);
-		os_state.dt = limiter.dt_s;
+		//time_limiter_tick(&limiter);
+		//os_state.dt = limiter.dt_s;
 	}
 
 	os_memory_free();

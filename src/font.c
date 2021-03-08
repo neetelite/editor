@@ -98,9 +98,8 @@ font_extract(struct Asset_Font *font,
 	     char *filename, char *font_name, u32 font_size,
 	     CodepointMask *codepoint_mask)
 {
-	u32 path_size = PATH_MAX*2;
-	char path[path_size];
-	snprintf(path, path_size, "%s%s%s", os_state.path_data, "font/", filename);
+	char path[PATH_MAX];
+	snprintf(path, PATH_MAX, "%s%s%s", os_state.path_data, "font/", filename);
 
 	struct Font_Info *info = &font->info;
 	info->glyph_count = codepoint_mask->glyph_count;

@@ -21,19 +21,40 @@ struct PositionPointer
 position_pointer_from_position(struct Position *position)
 {
 	struct PositionPointer result = {0};
-	result.buffer = editor_buffer_get_by_id(position->b);
-	result.line = buffer_line_get_by_id(result.buffer, position->y);
+	if(position->b == -1)
+	{
+		result.buffer = NULL;
+		result.line = NULL;
+		result.content = NULL;
+		result.c = NULL;
+		return(result);
+	}
 
-	if(position->c == -1)
+	result.buffer = editor_buffer_get_by_id(position->b);
+	if(result.buffer->lines == NULL)
 	{
-		result.content = EOL_PTR;
-		result.c = EOL_PTR;
+		result.line = NULL;
+		result.content = NULL;
+		result.c = NULL;
+		return(result);
 	}
-	else
+
+	result.line = buffer_line_get_by_id(result.buffer, position->y);
+	if(result.line->contents == NULL)
 	{
-		result.content = line_content_get_by_id(result.line, position->c);
-		result.c = &result.content->data[position->i];
+		result.content = NULL;
+		result.c = NULL;
+		return(result);
 	}
+
+	result.content = line_content_get_by_id(result.line, position->c);
+	if(result.content->data == NULL)
+	{
+		result.c = NULL;
+		return(result);
+	}
+
+	result.c = &result.content->data[position->i];
 	return(result);
 }
 
@@ -53,7 +74,7 @@ content_new(u32 id, u32 start, u32 count)
 	u64 size_data = result.size_alloc * sizeof(*result.data);
 	u64 size_visual = result.size_alloc * sizeof(*result.visual);
 	u64 size_total =  size_data + size_visual;
-	result.data = mem_alloc(size_total, false);
+	result.data = mem_alloc(size_total, true); /* TODO: Make it false in release */
 	result.visual = (struct Visual *)((u08 *)result.data+size_data);
 
 	return(result);
@@ -220,7 +241,7 @@ line_new(u32 id)
 	struct Line result = {0};
 	result.id = id;
 	result.content_count = 1;
-	result.content_max = 2;
+	result.content_max = 1;
 	result.contents = mem_alloc(result.content_max * sizeof(*result.contents), false);
 	result.contents[0] = content_new(0, 0, 0);
 	return(result);
@@ -314,6 +335,7 @@ line_content_shift_right(struct Position *pos, u32 n)
 void
 line_content_add_before(struct Position *pos)
 {
+	/* TODO: Doesn't work */
 	struct PositionPointer pointer = position_pointer_from_position(pos);
 	if(pointer.line->content_count+1 > pointer.line->content_max) line_grow(pointer.line);
 
@@ -328,7 +350,7 @@ line_content_add_before(struct Position *pos)
 void
 line_content_add_end(struct Position *pos)
 {
-	/* NOTE: Only use for the last content in the line */
+	/* NOTE: Only use for End of Line */
 	struct PositionPointer pointer = position_pointer_from_position(pos);
 	if(pointer.line->content_count+1 > pointer.line->content_max) line_grow(pointer.line);
 
@@ -437,16 +459,19 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 		#if BUILD_DEBUG
 		if(content->char_count != 0)
 		{
-			#if 0
-			printf("Content ID: %d\n", content->id);
-			printf("Char c: %d\n", content->char_count);
-			#endif
-
 			v4 color = V4_ZERO;
-			if(i % 2 == 0) color = v4_mf(V4_COLOR_GREEN, 0.5);
-			else color = v4_mf(V4_COLOR_BLUE, 0.5);
+			if(line->id % 2 == 0)
+			{
+			    if(i % 2 == 0) color = v4_mf(V4_COLOR_GREEN, 0.5);
+			    else color = v4_mf(V4_COLOR_GREEN, 0.3);
+			}
+			else
+			{
+			    if(i % 2 == 0) color = v4_mf(V4_COLOR_BLUE, 0.5);
+			    else color = v4_mf(V4_COLOR_BLUE, 0.3);
+			}
 
-			/* TODO: Make this automatically update */
+			/* TODO: Put this in shift update */
 			struct Visual *visual = content->visual;
 			v2 start = V2(visual[0].rec.start.x +ml+nw, y);
 			v2 end = V2_ZERO;
@@ -479,7 +504,7 @@ buffer_new(void)
 	struct Buffer result = {0};
 	result.line_count = 1;
 	result.line_max = 1;
-	result.lines = mem_alloc(result.line_max * sizeof(*result.lines), false);
+	result.lines = mem_alloc(result.line_max * sizeof(*result.lines), true);
 	result.lines[0] = line_new(0);
 	return(result);
 }
@@ -516,56 +541,54 @@ panel_cursor_move_up(struct Panel *panel)
 
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
-	panel->pos.y -= 1;
-	pointer.line = buffer_line_get_by_id(pointer.buffer, panel->pos.y);
-
-	if(panel->pos.x_min_active)
+	struct Line *line_above = buffer_line_get_by_id(pointer.buffer, panel->pos.y-1);
+	struct Content *content = NULL;
+	if(panel->pos.x_min_active == true)
 	{
-		if(panel->pos.x_min > pointer.line->char_count)
+		if(panel->pos.x_min <= line_above->char_count)
 		{
-			panel->pos.c = EOL;
-			panel->pos.i = EOL;
-
-			struct Content *last = line_content_get_last(pointer.line);
-			panel->pos.x = content_char_end(last);
+			content = line_content_get_by_char_pos(line_above, panel->pos.x_min);
+			panel->pos.x = panel->pos.x_min;
 		}
 		else
 		{
-			panel->pos.x = panel->pos.x_min;
-
-			struct Content *content = line_content_get_by_char_pos(pointer.line, panel->pos.x);
-			if(content == NULL)
-			{
-				panel->pos.c = EOL;
-				panel->pos.i = EOL;
-			}
-			else
-			{
-				panel->pos.c = content->id;
-				panel->pos.i = content_char_index_from_pos(content, panel->pos.x);
-			}
+			content = line_content_get_last(line_above);
+			panel->pos.x = line_above->char_count;
 		}
+
+		panel->pos.c = content->id;
+		panel->pos.i = content_char_index_from_pos(content, panel->pos.x);
+
 	}
 	else
 	{
-		if(panel->pos.x_min > pointer.line->char_count)
+		if(line_above->char_count < panel->pos.x)
 		{
-			panel->pos.c = EOL;
-			panel->pos.i = EOL;
-
-			panel->pos.x_min = panel->pos.x;
+			content = line_content_get_last(line_above);
 			panel->pos.x_min_active = true;
-
-			struct Content *last = line_content_get_last(pointer.line);
-			panel->pos.x = content_char_end(last);
+			panel->pos.x_min = panel->pos.x;
+			panel->pos.x = line_above->char_count;
 		}
 		else
 		{
-			struct Content *content = line_content_get_by_char_pos(pointer.line, panel->pos.x);
-			panel->pos.c = content->id;
-			panel->pos.i = content_char_index_from_pos(content, panel->pos.x);
+			content = line_content_get_by_char_pos(line_above, panel->pos.x);
+			panel->pos.x = panel->pos.x;
 		}
+
+		panel->pos.c = content->id;
+		panel->pos.i = content_char_index_from_pos(content, panel->pos.x);
 	}
+
+	panel->pos.y -= 1;
+
+	#if 0
+	printf("UP\n");
+	printf("Y: %d\n", panel->pos.y);
+	printf("X: %d\n", panel->pos.x);
+	printf("C: %d\n", panel->pos.c);
+	printf("I: %d\n", panel->pos.i);
+	printf("\n");
+	#endif
 }
 
 void
@@ -574,14 +597,14 @@ panel_cursor_move_down(struct Panel *panel)
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 	if(panel->pos.y >= pointer.buffer->line_count-1) return;
 
-	panel->pos.y += 1;
-	pointer.line = buffer_line_get_by_id(pointer.buffer, panel->pos.y);
-	//pointer.content = line_content_get_by_char_pos(pointer.line, panel->pos.x);
+	struct Line *line_below = buffer_line_get_by_id(pointer.buffer, panel->pos.y+1);
 
-	if(panel->pos.x > pointer.line->char_count)
+	if(panel->pos.x > line_below->char_count)
 	{
-		panel->pos.c = EOL;
-		panel->pos.i = EOL;
+		struct Content *last = line_content_get_last(line_below);
+
+		panel->pos.c = last->id;
+		panel->pos.i = last->char_count;
 
 		if(panel->pos.x_min_active == false)
 		{
@@ -589,21 +612,35 @@ panel_cursor_move_down(struct Panel *panel)
 			panel->pos.x_min_active = true;
 		}
 
-		struct Content *last = line_content_get_last(pointer.line);
 		panel->pos.x = content_char_end(last);
 	}
 	else
 	{
+		struct Content *content = NULL;
 		if(panel->pos.x_min_active == true)
 		{
+			content = line_content_get_by_char_pos(line_below, panel->pos.x_min);
 			panel->pos.x = panel->pos.x_min;
 		}
 		else
 		{
-			panel->pos.c = pointer.content->id;
-			panel->pos.i = content_char_index_from_pos(pointer.content, panel->pos.x);
+			content = line_content_get_by_char_pos(line_below, panel->pos.x);
 		}
+
+		panel->pos.c = content->id;
+		panel->pos.i = content_char_index_from_pos(content, panel->pos.x);
 	}
+
+	panel->pos.y += 1;
+
+	#if 0
+	printf("DOWN\n");
+	printf("Y: %d\n", panel->pos.y);
+	printf("X: %d\n", panel->pos.x);
+	printf("C: %d\n", panel->pos.c);
+	printf("I: %d\n", panel->pos.i);
+	printf("\n");
+	#endif
 }
 
 void
@@ -614,23 +651,25 @@ panel_cursor_move_right(struct Panel *panel)
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 	if(panel->pos.x > pointer.line->char_count-1) return;
 
-	panel->pos.x += 1;
 	if(panel->pos.x >= content_char_end(pointer.content))
 	{
 		pointer.content = line_content_get_next(pointer.line, pointer.content);
-		if(pointer.content != EOL_PTR)
+		if(pointer.content != NULL)
 		{
+			panel->pos.x += 1;
 			panel->pos.c = pointer.content->id;
 			panel->pos.i = 0;
 		}
 		else
 		{
-			panel->pos.c = EOL;
-			panel->pos.i = EOL;
+			panel->pos.x = -1;
+			panel->pos.c = -1;
+			panel->pos.i = -1;
 		}
 	}
 	else
 	{
+		panel->pos.x += 1;
 		panel->pos.i += 1;
 	}
 }
@@ -644,7 +683,7 @@ panel_cursor_move_left(struct Panel *panel)
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
 	panel->pos.x -= 1;
-	if(pointer.content == EOL_PTR)
+	if(pointer.content == NULL)
 	{
 		pointer.content = line_content_get_last(pointer.line);
 		panel->pos.c = pointer.content->id;
@@ -667,18 +706,18 @@ panel_cursor_move_start(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
+	panel->pos.c = 0;
 	pointer.content = line_content_get_first(pointer.line);
 	if(pointer.content)
 	{
-		panel->pos.c = 0;
 		panel->pos.i = 0;
+		panel->pos.x = 0;
 	}
 	else
 	{
-		panel->pos.c = EOL;
-		panel->pos.i = EOL;
+		panel->pos.i = -1;
+		panel->pos.x = -1;
 	}
-	panel->pos.x = 0;
 }
 
 void
@@ -686,8 +725,8 @@ panel_cursor_move_end(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
-	panel->pos.c = EOL;
-	panel->pos.i = EOL;
+	panel->pos.c = -1;
+	panel->pos.i = -1;
 	panel->pos.x = pointer.line->char_count;
 }
 
@@ -696,6 +735,7 @@ void
 panel_cursor_draw(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
+	if(pointer.buffer == NULL || pointer.line == NULL) return;
 
 	/* TEMPORARY: We need to find the exact char_width */
 	f32 nw = editor->line_number_width;
@@ -705,6 +745,7 @@ panel_cursor_draw(struct Panel *panel)
 	v2 cursor_dim = V2(10, char_height);
 	v2 cursor_pos = V2(0, HEIGHT-((panel->pos.y+1)*char_height));
 
+	/* TODO: */
 	struct Line *line = &pointer.buffer->lines[panel->pos.y];
 	struct Content *content = line_content_get_by_char_pos(line, panel->pos.x);
 
@@ -766,35 +807,13 @@ panel_line_input(struct Panel *panel, char c)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
-	/* End of the line */
-	if(panel->pos.c == EOL)
+	if(content_is_full(pointer.content))
 	{
-		if(line_is_empty(pointer.line))
-		{
-			/* TEMPORARY TODO */
-			//*pointer.content = content_new(0, 0, 0);
-			panel->pos.c = 0;
-			panel->pos.i = 0;
-		}
-		else
-		{
-			line_content_add_end(&panel->pos);
-		}
-	}
-	/* Full */
-	else if(content_is_full(pointer.content))
-	{
-		printf("FULL\n");
-		u32 char_index = content_char_index_from_pos(pointer.content, panel->pos.x);
-		if(char_index == 0)
-		{
-			line_content_add_before(&panel->pos);
-		}
-		else
-		{
-			/* TODO: Change this to char_index */
-			line_content_add_between(&panel->pos);
-		}
+		if(content_char_index_is_end(pointer.content, panel->pos.i)) line_content_add_end(&panel->pos);
+		else if(panel->pos.i == 0) line_content_add_before(&panel->pos);
+		else line_content_add_between(&panel->pos);
+
+		pointer = position_pointer_from_position(&panel->pos);
 	}
 
 	line_content_input(&panel->pos, c);
@@ -818,11 +837,40 @@ struct Panel
 panel_new(struct Buffer *buffer)
 {
 	struct Panel result = {0};
-	result.pos.b = 0;
-	result.pos.c = 0;
-	result.pos.i = 0;
-	result.pos.x = 0;
+
+	if(buffer == NULL)
+	{
+		result.pos.b = -1;
+		result.pos.y = -1;
+		result.pos.c = -1;
+		result.pos.x = -1;
+		result.pos.i = -1;
+		return(result);
+	}
+
+	result.pos.b = buffer->id;
+	if(buffer->lines == NULL)
+	{
+		result.pos.y = -1;
+		result.pos.c = -1;
+
+		result.pos.x = -1;
+		result.pos.i = -1;
+		return(result);
+	}
+
 	result.pos.y = 0;
+	if(buffer->lines[0].contents == NULL)
+	{
+		result.pos.c = -1;
+		result.pos.x = -1;
+		result.pos.i = -1;
+		return(result);
+	}
+
+	result.pos.c = 0;
+	result.pos.x = 0;
+	result.pos.i = 0;
 	return(result);
 }
 
@@ -885,7 +933,7 @@ window_new()
 {
 	struct Window result = {0};
 	result.panel_id = 0;
-	result.panel_count = editor->buffer_count; /* TEMPORARY TODO:  */
+	result.panel_count = 1;
 	result.panels = mem_alloc(result.panel_count * sizeof(*result.panels), true);
 	for(u32 i = 0; i < result.panel_count; ++i)
 	{
@@ -910,7 +958,7 @@ editor_init(void)
 	editor->margin_left = 5.0;
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
-	#if 1
+	#if 0
 	editor->content_min = 256;
 	editor->content_max = 256;
 	#else
@@ -1007,7 +1055,7 @@ void
 position_update_next_char(struct Position *position,
 			  struct PositionPointer *pointer)
 {
-	if(position->c == EOL) return;
+	if(position->c == -1) return;
 
 	position->x += 1;
 	/* End of Line */
@@ -1016,10 +1064,10 @@ position_update_next_char(struct Position *position,
 		/* End of buffer */
 		if(pointer->line->id >= pointer->buffer->line_count-1)
 		{
-			position->c = EOL;
-			position->i = EOL;
-			pointer->content = EOL_PTR;
-			pointer->c = EOL_PTR;
+			position->c = -1;
+			position->i = -1;
+			pointer->content = NULL;
+			pointer->c = NULL;
 
 			return;
 		}
