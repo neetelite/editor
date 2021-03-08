@@ -1,3 +1,6 @@
+#define PRINT_CONTENT_BACKGROUND 0
+#define PRINT_MOVEMENT_INFO 0
+
 #ifdef EOF
 #undef EOF
 #endif

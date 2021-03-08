@@ -1,3 +1,4 @@
+
 void
 cstr_draw(char *text, u32 len, v2 pos, struct Alignment *align, f32 z, v4 color)
 {
@@ -477,7 +478,8 @@ panel_line_number_draw(struct Panel *panel, struct Line *line)
 void
 panel_line_draw(struct Panel *panel, struct Line *line)
 {
-	#if BUILD_DEBUG
+
+	#if PRINT_CONTENT_BACKGROUND
 	f32 y = HEIGHT - (editor->font.height * (line->id + 1));
 	f32 ml = editor->margin_left;
 	f32 nw = editor->line_number_width;
@@ -488,7 +490,7 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 	{
 		struct Content *content = &line->contents[i];
 
-		#if BUILD_DEBUG
+		#if PRINT_CONTENT_BACKGROUND
 		if(content->char_count != 0)
 		{
 			v4 color = V4_ZERO;
@@ -622,9 +624,11 @@ panel_cursor_move_up(struct Panel *panel)
 	struct Line *line_above = buffer_line_get_by_id(pointer.buffer, panel->pos.y-1);
 	panel_cursor_move_to_line(panel, line_above);
 
+	#if PRINT_MOVEMENT_INFO
 	printf("UP\n");
 	position_print(&panel->pos);
 	printf("\n");
+	#endif
 }
 
 void
@@ -636,9 +640,11 @@ panel_cursor_move_down(struct Panel *panel)
 	struct Line *line_below = buffer_line_get_by_id(pointer.buffer, panel->pos.y+1);
 	panel_cursor_move_to_line(panel, line_below);
 
+	#if PRINT_MOVEMENT_INFO
 	printf("DOWN\n");
 	position_print(&panel->pos);
 	printf("\n");
+	#endif
 }
 
 void
@@ -673,10 +679,11 @@ panel_cursor_move_right(struct Panel *panel)
 
 	panel->pos.x += 1;
 
-
+	#if PRINT_MOVEMENT_INFO
 	printf("RIGHT\n");
 	position_print(&panel->pos);
 	printf("\n");
+	#endif
 }
 
 void
@@ -713,9 +720,11 @@ panel_cursor_move_left(struct Panel *panel)
 
 	panel->pos.x -= 1;
 
+	#if PRINT_MOVEMENT_INFO
 	printf("LEFT\n");
 	position_print(&panel->pos);
 	printf("\n");
+	#endif
 }
 
 void
@@ -736,9 +745,11 @@ panel_cursor_move_start(struct Panel *panel)
 	}
 	panel->pos.x = 0;
 
+	#if PRINT_MOVEMENT_INFO
 	printf("START\n");
 	position_print(&panel->pos);
 	printf("\n");
+	#endif
 }
 
 void
@@ -750,9 +761,11 @@ panel_cursor_move_end(struct Panel *panel)
 	panel->pos.i = -1;
 	panel->pos.x = pointer.line->char_count;
 
+	#if PRINT_MOVEMENT_INFO
 	printf("END\n");
 	position_print(&panel->pos);
 	printf("\n");
+	#endif
 }
 
 /* TODO: Change this to panel */
@@ -976,7 +989,7 @@ editor_init(void)
 	editor->margin_left = 5.0;
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
-	#if 0
+	#if 1
 	editor->content_min = 256;
 	editor->content_max = 256;
 	#else
