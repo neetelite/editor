@@ -1,4 +1,3 @@
-
 void
 cstr_draw(char *text, u32 len, v2 pos, struct Alignment *align, f32 z, v4 color)
 {
@@ -472,7 +471,8 @@ panel_line_number_draw(struct Panel *panel, struct Line *line)
 	char content[5];
 
 	snprintf(content, 5, "%d", line->id+1);
-	cstr_draw(content, (line->id/10)+1, pos, &editor->align_buffer, canvas->z[layer_content_text], V4_COLOR_BLUE);
+	cstr_draw(content, (line->id/10)+1, pos, &editor->align_buffer,
+		  canvas->z[layer_content_text], V4_COLOR_RED);
 }
 
 void
@@ -655,28 +655,26 @@ panel_cursor_move_right(struct Panel *panel)
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 	if(panel->pos.x >= pointer.line->char_count) return;
 
-	u32 size_end = content_size_end(pointer.content);
-	if(panel->pos.x >= size_end-1)
+	if(panel->pos.x+1 >= pointer.line->char_count)
 	{
-		printf("NEXT CONTENT\n");
-		struct Content *content_next = line_content_get_next(pointer.line, pointer.content);
-		if(content_next != NULL)
+		panel->pos.c = EOL;
+		panel->pos.i = EOL;
+	}
+	else
+	{
+		u32 char_end = content_char_end(pointer.content);
+		if(panel->pos.x >= char_end-1)
 		{
+			struct Content *content_next = line_content_get_next(pointer.line, pointer.content);
 			panel->pos.c = content_next->id;
 			panel->pos.i = 0;
 		}
 		else
 		{
-			panel->pos.c = EOL;
-			panel->pos.i = EOL;
+			panel->pos.c = panel->pos.c;
+			panel->pos.i += 1;
 		}
 	}
-	else
-	{
-		panel->pos.c = panel->pos.c;
-		panel->pos.i += 1;
-	}
-
 	panel->pos.x += 1;
 
 	#if PRINT_MOVEMENT_INFO
@@ -836,7 +834,19 @@ panel_line_input(struct Panel *panel, char c)
 	if(panel->pos.c == EOL)
 	{
 		if(panel->pos.x == 0) line_content_add_start(&panel->pos);
-		else line_content_add_end(&panel->pos);
+		else
+		{
+			struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
+			struct Content *content_last = line_content_get_last(pointer.line);
+
+			u32 size_end = content_size_end(content_last);
+			if(panel->pos.x >= size_end) line_content_add_end(&panel->pos);
+			else
+			{
+				panel->pos.c = content_last->id;
+				panel->pos.i = content_last->char_count;
+			}
+		}
 	}
 	else
 	{
@@ -989,12 +999,12 @@ editor_init(void)
 	editor->margin_left = 5.0;
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
-	#if 1
+	#if 0
 	editor->content_min = 256;
 	editor->content_max = 256;
 	#else
-	editor->content_min = 2;
-	editor->content_max = 2;
+	editor->content_min = 4;
+	editor->content_max = 4;
 	#endif
 
 	/* Camera */
