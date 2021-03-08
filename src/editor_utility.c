@@ -71,9 +71,9 @@ content_is_full(struct Content *content)
 struct Content *
 line_content_get_by_id(struct Line *line, i32 content_id)
 {
-	ASSERT(content_id >= 0);
+	if(line->content_count == 0) return(NULL);
 
-	if(content_id == 0) return(NULL);
+	ASSERT(content_id >= 0);
 	ASSERT(content_id < line->content_count);
 
 	struct Content *result = NULL;

@@ -4,7 +4,8 @@
 
 #define EOF     -1
 #define EOF_PTR NULL
-#define EOL     -1
+
+#define EOL     -1 /* Either end of line, or line is empty */
 #define EOL_PTR NULL
 
 u32 word_tokens_skip[] = {' ', '_', '.'};

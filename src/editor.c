@@ -759,65 +759,54 @@ panel_cursor_move_end(struct Panel *panel)
 void
 panel_cursor_draw(struct Panel *panel)
 {
-	#if 1
-	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
-	if(pointer.buffer == NULL || pointer.line == NULL) return;
+	struct Buffer *buffer = editor_buffer_get_by_id(0);
+	struct Line *line = buffer_line_get_by_id(buffer, panel->pos.y);
 
-	/* TEMPORARY: We need to find the exact char_width */
-	f32 nw = editor->line_number_width;
-	nw += editor->margin_left;
+	/* TODO: We need to find the exact char_width */
+	f32 char_width = 10;
 	f32 char_height = editor->font.height;
+	v2 cursor_dim = V2(char_width, char_height);
 
-	v2 cursor_dim = V2(10, char_height);
-	v2 cursor_pos = V2(0, HEIGHT-((panel->pos.y+1)*char_height));
+	f32 start_y = HEIGHT - (editor->font.height * (line->id + 1));
+	f32 padding = editor->line_number_width + editor->margin_left;
 
-	/* TODO: */
-	struct Line *line = &pointer.buffer->lines[panel->pos.y];
-	struct Content *content = line_content_get_by_char_pos(line, panel->pos.x);
-
-	v2 start, end;
-	if(content == NULL)
-	{
-		#if 0
-		/* End of the line */
-		u32 char_index = panel->pos.x - content->char_start;
-
-		struct Visual *previous = &content->visual[char_index - 1];
-		start = V2(nw+previous->rec.end.x, cursor_pos.y);
-		end = V2(start.x + cursor_dim.x, cursor_pos.y + cursor_dim.y);
-		#endif
-
-		content = line_content_get_last(line);
-	}
+	v2 start = V2_ZERO;;
+	v2 end = V2_ZERO;;
 
 	if(panel->pos.x == 0)
 	{
-		/* TODO: Handle newline, space and null chars and remove this if statement */
-		start = V2(nw+cursor_pos.x, cursor_pos.y);
-		end = V2(start.x+cursor_dim.x, start.y+cursor_dim.y);
+		start = V2(padding, start_y);
+		end = v2_a(start, cursor_dim);
 	}
 	else
 	{
-		u32 char_index = panel->pos.x - content->char_start;
-		if(char_index == 0)
+		if(panel->pos.c == EOL)
 		{
-			struct Content *previous = line_content_get_previous(pointer.line, pointer.content);
-			struct Visual *visual = &previous->visual[previous->char_count-1];
-
-			start = V2(nw+visual->rec.end.x, cursor_pos.y);
-			end = V2(start.x + cursor_dim.x, cursor_pos.y + cursor_dim.y);
+			struct Content *content_last = line_content_get_last(line);
+			struct Rec2 *rec_last = &content_last->visual[content_last->char_count-1].rec;
+			start = V2(padding+rec_last->end.x, start_y);
+			end = v2_a(start, cursor_dim);
 		}
 		else
 		{
-			struct Visual *previous = &content->visual[char_index - 1];
-			//struct Visual *current = &content->visual[char_index];
+			/* TODO: Cursor width is the size of character width */
+			/* You need to get the previous content for that */
 
-			start = V2(nw+previous->rec.end.x, cursor_pos.y);
-			#if 0
-			end = V2(nw+current->rec.start.x, cursor_pos.y + cursor_dim.y);
-			#else
-			end = V2(start.x + cursor_dim.x, cursor_pos.y + cursor_dim.y);
-			#endif
+			/* NOTE: You cannot get the current character becaues it may not be typed yet! */
+			struct Content *content = line_content_get_by_id(line, panel->pos.c);
+			if(panel->pos.i == 0)
+			{
+				struct Content *content_prev = line_content_get_previous(line, content);
+				struct Rec2 *rec = &content_prev->visual[content_prev->char_count-1].rec;
+				start = V2(padding+rec->end.x, start_y);
+				end = v2_a(start, cursor_dim);
+			}
+			else
+			{
+				struct Rec2 *rec = &content->visual[panel->pos.i-1].rec;
+				start = V2(padding+rec->end.x, start_y);
+				end = v2_a(start, cursor_dim);
+			}
 		}
 	}
 
@@ -826,7 +815,6 @@ panel_cursor_draw(struct Panel *panel)
 
 	/* TODO: Text */
 	//content_char_draw(pointer.content, panel->pos.i, editor->color_background);
-	#endif
 }
 
 void
