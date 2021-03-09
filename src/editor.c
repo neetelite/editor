@@ -20,8 +20,15 @@ POS(u32 b, u32 y, u32 x, i32 c, i32 i)
 struct PositionPointer
 position_pointer_from_position(struct Position *position)
 {
+	/* NOTE: Now that we return NULL pointers on get_by_id() function
+	   we need to check if those before using them */
+
+	/* TODO NOTE: This function could be written better, it's quite ambiguous */
+	/* We do assignment inside of if() parenthesis */
+
 	struct PositionPointer result = {0};
-	if(position->b == EOF)
+	if(position->b == EOF ||
+	   (result.buffer = editor_buffer_get_by_id(position->b)) == NULL)
 	{
 		result.buffer = NULL;
 		result.line = NULL;
@@ -30,8 +37,8 @@ position_pointer_from_position(struct Position *position)
 		return(result);
 	}
 
-	result.buffer = editor_buffer_get_by_id(position->b);
-	if(position->y == EOF)
+	if(position->y == EOF ||
+	   (result.line = buffer_line_get_by_id(result.buffer, position->y)) == NULL)
 	{
 		result.line = NULL;
 		result.content = NULL;
@@ -39,16 +46,18 @@ position_pointer_from_position(struct Position *position)
 		return(result);
 	}
 
-	result.line = buffer_line_get_by_id(result.buffer, position->y);
-	if(position->c == EOL)
+	if(position->c == EOL ||
+	   (result.content = line_content_get_by_id(result.line, position->c)) == NULL)
+
 	{
 		result.content = NULL;
 		result.c = NULL;
 		return(result);
 	}
-
-	result.content = line_content_get_by_id(result.line, position->c);
-	result.c = &result.content->data[position->i];
+	else
+	{
+		result.c = &result.content->data[position->i];
+	}
 
 	return(result);
 }
@@ -557,31 +566,6 @@ buffer_new(void)
 	result.lines[0] = line_new(0);
 	return(result);
 }
-
-#if 0
-void
-buffer_shift_down(struct Buffer *buffer, u32 line_id, u32 n)
-{
-	for(i32 i = line_id; i < buffer->line_count; i += n)
-	{
-
-	}
-}
-
-void
-buffer_line_add_above(struct Buffer *buffer)
-{
-	/* TODO: Test of shifting */
-
-	if(buffer->line_count+1 > buffer->line_max) buffer_grow(buffer);
-
-	u32 line_id = panel->pos.y;
-	struct Line line = line_new(line_id);
-
-	buffer->line_count += 1;
-	printf("line added\n");
-}
-#endif
 
 void
 panel_cursor_move_to_line(struct Panel *panel, struct Line *line)
@@ -1287,7 +1271,7 @@ buffer_line_shift_down(struct Position *pos, u32 n)
 }
 
 void
-panel_line_add_below(struct Panel *panel)
+panel_line_add(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
@@ -1296,8 +1280,6 @@ panel_line_add_below(struct Panel *panel)
 		buffer_grow(pointer.buffer);
 		pointer = position_pointer_from_position(&panel->pos);
 	}
-
-	panel->pos.y += 1;
 
 	/* NOTE: We cannot increment buffer->line_count before buffer_line_shift_down */
 	if(panel->pos.y < pointer.buffer->line_count)
@@ -1316,6 +1298,24 @@ panel_line_add_below(struct Panel *panel)
 	panel->pos.x = 0;
 	panel->pos.c = EOL;
 	panel->pos.i = EOL;
+}
+
+void
+panel_line_add_above(struct Panel *panel)
+{
+	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
+
+	panel_line_add(panel);
+	panel_edit_mode_change(panel, edit_mode_insert);
+}
+
+void
+panel_line_add_below(struct Panel *panel)
+{
+	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
+
+	panel->pos.y += 1;
+	panel_line_add(panel);
 	panel_edit_mode_change(panel, edit_mode_insert);
 }
 
@@ -1370,8 +1370,8 @@ panel_input(struct Panel *panel)
 		/* Lines */
 		if(key_press(key_o))
 		{
-			#if 0
-			if(key_shift_down()) buffer_add_line_above(buffer);
+			#if 1
+			if(key_shift_down()) panel_line_add_above(panel);
 			else panel_line_add_below(panel);
 			#else
 			panel_line_add_below(panel);

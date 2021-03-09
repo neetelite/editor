@@ -71,10 +71,14 @@ content_is_full(struct Content *content)
 struct Content *
 line_content_get_by_id(struct Line *line, i32 content_id)
 {
-	if(line->content_count == 0) return(NULL);
+	ASSERT(line != NULL);
 
-	ASSERT(content_id >= 0);
-	ASSERT(content_id < line->content_count);
+	if(line->content_count == 0 ||
+	   content_id < 0 ||
+	   content_id >= line->content_count)
+	{
+		return(NULL);
+	}
 
 	struct Content *result = NULL;
 	result = &line->contents[content_id];
@@ -279,7 +283,14 @@ position_line_get_next(struct Panel *panel)
 struct Line *
 buffer_line_get_by_id(struct Buffer *buffer, i32 line_id)
 {
-	ASSERT(line_id < buffer->line_count);
+	ASSERT(buffer != NULL);
+
+	if(buffer->line_count == 0 ||
+	   line_id < 0 ||
+	   line_id >= buffer->line_count)
+	{
+		return(NULL);
+	}
 
 	struct Line *result = NULL;
 	result = &buffer->lines[line_id];
