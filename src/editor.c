@@ -490,57 +490,57 @@ void
 panel_line_draw(struct Panel *panel, struct Line *line)
 {
 
-	#if DRAW_CONTENT_BACKGROUND
-	f32 y = HEIGHT - (editor->font.height * (line->id + 1));
-	f32 ml = editor->margin_left;
-	f32 nw = editor->line_number_width;
-	#endif
-
 	panel_line_number_draw(panel, line);
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
 		struct Content *content = &line->contents[i];
 
-		#if DRAW_CONTENT_BACKGROUND
-		if(content->char_count != 0)
+		if(editor->draw_content_background)
 		{
-			v4 color = V4_ZERO;
-			if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
-			else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
-			else color = V4_COLOR_RED; /* SPLIT */
 
-			if(line->id % 2 == 0)
+			f32 y = HEIGHT - (editor->font.height * (line->id + 1));
+			f32 ml = editor->margin_left;
+			f32 nw = editor->line_number_width;
+			if(content->char_count != 0)
 			{
-			    if(i % 2 == 0) color = v4_mf(color, 0.5);
-			    else color = v4_mf(color, 0.3);
-			}
-			else
-			{
-			    if(i % 2 == 0) color = v4_mf(color, 0.3);
-			    else color = v4_mf(color, 0.5);
-			}
+				v4 color = V4_ZERO;
+				if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
+				else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
+				else color = V4_COLOR_RED; /* SPLIT */
 
-			/* TODO: Put this in shift update */
-			struct Visual *visual = content->visual;
-			v2 start = V2(visual[0].rec.start.x +ml+nw, y);
-			v2 end = V2_ZERO;
+				if(line->id % 2 == 0)
+				{
+				    if(i % 2 == 0) color = v4_mf(color, 0.5);
+				    else color = v4_mf(color, 0.3);
+				}
+				else
+				{
+				    if(i % 2 == 0) color = v4_mf(color, 0.3);
+				    else color = v4_mf(color, 0.5);
+				}
 
-			if(line->content_count > 1 && i < line->content_count - 1)
-			{
-				struct Content *content_next = &line->contents[i+1];
-				struct Visual *visual_next = content_next->visual;
-				end = V2(visual_next[0].rec.start.x + ml+nw, y+editor->font.height);
+				/* TODO: Put this in shift update */
+				struct Visual *visual = content->visual;
+				v2 start = V2(visual[0].rec.start.x +ml+nw, y);
+				v2 end = V2_ZERO;
+
+				if(line->content_count > 1 && i < line->content_count - 1)
+				{
+					struct Content *content_next = &line->contents[i+1];
+					struct Visual *visual_next = content_next->visual;
+					end = V2(visual_next[0].rec.start.x + ml+nw, y+editor->font.height);
+				}
+				else
+				{
+					end = V2(visual[content->char_count-1].rec.end.x +ml+nw, y+editor->font.height);
+				}
+
+				struct Rec2 content_rec = REC2(start, end);
+
+				rec2_draw(&content_rec, editor->camera.transform,
+					canvas->z[layer_content_background], color);
 			}
-			else
-			{
-				end = V2(visual[content->char_count-1].rec.end.x +ml+nw, y+editor->font.height);
-			}
-
-			struct Rec2 content_rec = REC2(start, end);
-
-			rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
 		}
-		#endif
 
 		panel_content_draw(panel, content);
 	}
@@ -639,11 +639,12 @@ panel_cursor_move_up(struct Panel *panel)
 	struct Line *line_above = buffer_line_get_by_id(pointer.buffer, panel->pos.y-1);
 	panel_cursor_move_to_line(panel, line_above);
 
-	#if PRINT_MOVEMENT_INFO
-	printf("UP\n");
-	position_print(&panel->pos);
-	printf("\n");
-	#endif
+	if(editor->print_movement_info)
+	{
+		printf("UP\n");
+		position_print(&panel->pos);
+		printf("\n");
+	}
 }
 
 void
@@ -655,11 +656,12 @@ panel_cursor_move_down(struct Panel *panel)
 	struct Line *line_below = buffer_line_get_by_id(pointer.buffer, panel->pos.y+1);
 	panel_cursor_move_to_line(panel, line_below);
 
-	#if PRINT_MOVEMENT_INFO
-	printf("DOWN\n");
-	position_print(&panel->pos);
-	printf("\n");
-	#endif
+	if(editor->print_movement_info)
+	{
+		printf("DOWN\n");
+		position_print(&panel->pos);
+		printf("\n");
+	}
 }
 
 void
@@ -692,11 +694,12 @@ panel_cursor_move_right(struct Panel *panel)
 	}
 	panel->pos.x += 1;
 
-	#if PRINT_MOVEMENT_INFO
-	printf("RIGHT\n");
-	position_print(&panel->pos);
-	printf("\n");
-	#endif
+	if(editor->print_movement_info)
+	{
+		printf("RIGHT\n");
+		position_print(&panel->pos);
+		printf("\n");
+	}
 }
 
 void
@@ -733,11 +736,12 @@ panel_cursor_move_left(struct Panel *panel)
 
 	panel->pos.x -= 1;
 
-	#if PRINT_MOVEMENT_INFO
-	printf("LEFT\n");
-	position_print(&panel->pos);
-	printf("\n");
-	#endif
+	if(editor->print_movement_info)
+	{
+		printf("LEFT\n");
+		position_print(&panel->pos);
+		printf("\n");
+	}
 }
 
 void
@@ -758,11 +762,12 @@ panel_cursor_move_start(struct Panel *panel)
 	}
 	panel->pos.x = 0;
 
-	#if PRINT_MOVEMENT_INFO
-	printf("START\n");
-	position_print(&panel->pos);
-	printf("\n");
-	#endif
+	if(editor->print_movement_info)
+	{
+		printf("START\n");
+		position_print(&panel->pos);
+		printf("\n");
+	}
 }
 
 void
@@ -774,11 +779,12 @@ panel_cursor_move_end(struct Panel *panel)
 	panel->pos.i = -1;
 	panel->pos.x = pointer.line->char_count;
 
-	#if PRINT_MOVEMENT_INFO
-	printf("END\n");
-	position_print(&panel->pos);
-	printf("\n");
-	#endif
+	if(editor->print_movement_info)
+	{
+		printf("END\n");
+		position_print(&panel->pos);
+		printf("\n");
+	}
 }
 
 /* TODO: Change this to panel */
@@ -1045,12 +1051,12 @@ editor_init(void)
 	editor->margin_left = 5.0;
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
-	#if 0
+	#if 1
 	editor->content_min = 128;
 	editor->content_max = 128;
 	#else
-	editor->content_min = 8;
-	editor->content_max = 8;
+	editor->content_min = 2;
+	editor->content_max = 2;
 	#endif
 
 	/* Camera */
@@ -1193,9 +1199,9 @@ panel_cursor_move_word_previous(struct Panel *panel)
 	position_update_previous_char(&panel->pos, &pointer);
 	loop
 	{
-		for(u32 i = 0; i < COUNT(word_tokens_stop); ++i)
+		for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
 		{
-			if((u32)*pointer.c == word_tokens_stop[i])
+			if((u32)*pointer.c == word_tokens_stop_at[i])
 			{
 				return;
 			}
@@ -1205,9 +1211,9 @@ panel_cursor_move_word_previous(struct Panel *panel)
 
 		if(panel->pos.y == 0 && panel->pos.x == 0) return;
 
-		for(u32 i = 0; i < COUNT(word_tokens_skip); ++i)
+		for(u32 i = 0; i < COUNT(word_tokens_stop_after); ++i)
 		{
-			if((u32)*pointer.c == word_tokens_skip[i])
+			if((u32)*pointer.c == word_tokens_stop_after[i])
 			{
 				position_update_next_char(&panel->pos, &pointer);
 				return;
@@ -1230,23 +1236,53 @@ panel_cursor_move_word_next(struct Panel *panel)
 		if(pointer.c == NULL) return;
 		if(previous_y < panel->pos.y) return;
 
-		for(u32 i = 0; i < COUNT(word_tokens_skip); ++i)
+		for(u32 i = 0; i < COUNT(word_tokens_stop_after); ++i)
 		{
-			if((u32)*previous == word_tokens_skip[i])
+			if((u32)*previous == word_tokens_stop_after[i])
 			{
 				return;
 			}
 		}
 
-		for(u32 i = 0; i < COUNT(word_tokens_stop); ++i)
+		for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
 		{
-			if((u32)*pointer.c == word_tokens_stop[i])
+			if((u32)*pointer.c == word_tokens_stop_at[i])
 			{
 				return;
 			}
 		}
 
 		previous = pointer.c;
+	}
+}
+
+void
+buffer_line_shift_down_update(struct Position *pos, u32 n)
+{
+	struct PositionPointer pointer = position_pointer_from_position(pos);
+	struct Position line_pos = {0};
+	line_pos.b = pos->b;
+
+	for(i32 line_id = pos->y; line_id < pointer.buffer->line_count; line_id += 1)
+	{
+		if(pointer.buffer->lines[line_id].content_count != 0)
+		{
+			line_pos.y = line_id;
+			line_content_shift_update(&line_pos);
+		}
+	}
+}
+
+void
+buffer_line_shift_down(struct Position *pos, u32 n)
+{
+	struct PositionPointer pointer = position_pointer_from_position(pos);
+	for(u32 i = pointer.buffer->line_count+n-1; i > pos->y; --i)
+	{
+		u32 id_from = i-n;
+		u32 id_to = i;
+		pointer.buffer->lines[id_to] = pointer.buffer->lines[id_from];
+		pointer.buffer->lines[id_to].id = id_to;
 	}
 }
 
@@ -1261,17 +1297,26 @@ panel_line_add_below(struct Panel *panel)
 		pointer = position_pointer_from_position(&panel->pos);
 	}
 
-	u32 line_id = panel->pos.y+1;
-	pointer.buffer->lines[line_id] = line_new(line_id);
-	pointer.buffer->line_count += 1;
+	panel->pos.y += 1;
 
-	panel_cursor_move_down(panel);
-	//panel->pos.c = 0;
-	//panel->pos.i = 0;
+	/* NOTE: We cannot increment buffer->line_count before buffer_line_shift_down */
+	if(panel->pos.y < pointer.buffer->line_count)
+	{
+		buffer_line_shift_down(&panel->pos, 1);
 
+		pointer.buffer->line_count += 1;
+		buffer_line_shift_down_update(&panel->pos, 1);
+	}
+	else
+	{
+		pointer.buffer->line_count += 1;
+	}
+	pointer.buffer->lines[panel->pos.y] = line_new(panel->pos.y);
+
+	panel->pos.x = 0;
+	panel->pos.c = EOL;
+	panel->pos.i = EOL;
 	panel_edit_mode_change(panel, edit_mode_insert);
-
-	panel->pos.x_min_active = false;
 }
 
 void
@@ -1390,6 +1435,12 @@ window_update(struct Window *window)
 void
 editor_update(void)
 {
+	/* Debug */
+	#if BUILD_DEBUG
+	if(key_press(key_f9)) bool_toggle(&editor->draw_content_background);
+	if(key_press(key_f10)) bool_toggle(&editor->print_movement_info);
+	#endif
+
 	for(u32 i = 0; i < editor->window_count; ++i)
 	{
 		struct Window *window = &editor->windows[i];

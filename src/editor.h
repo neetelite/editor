@@ -1,5 +1,5 @@
-#define DRAW_CONTENT_BACKGROUND 1
-#define PRINT_MOVEMENT_INFO 1
+#define DRAW_CONTENT_BACKGROUND 0
+#define PRINT_MOVEMENT_INFO 0
 
 #ifdef EOF
 #undef EOF
@@ -11,8 +11,12 @@
 #define EOL     -1 /* Either end of line, or line is empty */
 #define EOL_PTR NULL
 
-u32 word_tokens_skip[] = {' ', '_', '.'};
-u32 word_tokens_stop[] = {'_', '.'};
+/* Tokens to stop AT */
+u32 word_tokens_stop_at[] = {'_', '.', ',', ';', ':', '=', '+', '-', '(', ')', '{', '}'};
+
+/* TODO: You don't stop after you skip, you move to the next alphanum, skip all whitespace */
+/* Tokens to move one character over then stop */
+u32 word_tokens_stop_after[] = {' ', '_', '.', '(', '{'};
 
 struct Visual
 {
@@ -117,6 +121,15 @@ char edit_mode_str_table[][EDIT_MODE_STR_SIZE] =
 
 struct Editor
 {
+	struct Camera camera;
+
+	u32 buffer_count;
+	struct Buffer *buffers;
+
+	u32 window_id;
+	u32 window_count;
+	struct Window *windows;
+
 	/* Settings */
 	struct Asset_Font font;
 	struct Alignment align_bar;
@@ -128,14 +141,9 @@ struct Editor
 	u32 content_min;
 	u32 content_max;
 
-	struct Camera camera;
-
-	u32 buffer_count;
-	struct Buffer *buffers;
-
-	u32 window_id;
-	u32 window_count;
-	struct Window *windows;
+	    /* Debug */
+	bool draw_content_background;
+	bool print_movement_info;
 };
 
 struct Editor *editor;

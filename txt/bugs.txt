@@ -1,1 +1,0 @@
-Inserting a line between two other lines clears the one bellow
