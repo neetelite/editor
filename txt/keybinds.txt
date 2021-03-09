@@ -1,0 +1,144 @@
+/* Normal mode */
+/* MIDDLE ROW - MOVEMENT */
+h	1 char left
+j	1 char down
+k	1 char up
+l	1 char right
+
+H	line start
+L	line end
+
+J	next empty line
+K	prev empty line
+
+;	next 0 intent empty line
+:	prev 0 intent empty line
+
+'	goto char
+"	goto line
+
+g	word end
+f	word forward
+d	word back
+
+G	WORD end
+F	WORD forward
+D	WORD back
+
+s
+S
+
+a	mark current position
+A	goto mark
+
+/* BOTTOM RIGHT - MOVEMENT */
+,	line screen first
+.	line screen last
+m	line screen middle
+
+<	line file first
+>	line file last
+M	line file middle
+
+n	move to next highlight
+N	move to prev highlight
+
+/	search in this buffer
+?	search in all buffers
+
+
+/* BOTTOM LEFT - EDITING */
+    /* Visual Mode */
+v 	paste
+c 	copy
+x	delete
+z 	cut
+
+V 	paste on newline
+C 	copy line
+X	delete line
+Z	cut line
+
+b    	substitute with string
+B    	substitute with char
+
+/* TOP RIGHT - COMANDS */
+y
+Y
+
+u	undo
+U	redo
+
+i	indent right
+I	indent left
+
+o	add line below
+O	add line above
+
+p
+P
+
+[	move to block opening
+]	move to block closing
+
+{	move to block opening of type
+}	move to block closing of type
+
+/* TOP LEFT - COMMANDS */
+q
+Q
+
+w	switch mode to visual
+W	switch mode to visual-line
+
+e	switch mode to edit-insert
+E	switch mode to edit-replace
+
+r	repeat movement
+R	repeat command
+
+t
+T
+
+/* SPECIAL CHARACTERS AND NUMBERS */
+ESC	switch mode to normal
+TAB
+
+`	switch mode to command
+~	repeat last command
+
+/* ALT COMMANDS - OUT OF BUFFER */
+A^w	write file (save)
+A^r	read file (load)
+
+A^b	open buffer
+A^k	kill buffer
+
+	toggle between source and header file
+	switch to last file
+	switch to prev file
+	switch to next file
+
+A^k	window up
+A^j	window down
+A^h	window left
+A^l	window right
+
+	peek definition
+	peek declaration
+	peek references
+
+	goto definition
+	goto declaration
+	goto reference next
+	goto reference prev
+
+	rename symbol
+	delete symbol
+	change symbol type
+	move symbol
+
+/* CTRL COMMANDS - IN BUFFER EDITING */
+C^c	reverse character casing
+C^e	evaluate expression
+C^i	increment number

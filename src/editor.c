@@ -1176,7 +1176,7 @@ position_update_next_char(struct Position *position,
 }
 
 void
-panel_cursor_move_word_previous(struct Panel *panel)
+panel_cursor_move_word_prev(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 
@@ -1304,9 +1304,7 @@ void
 panel_line_add_above(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
-
 	panel_line_add(panel);
-	panel_edit_mode_change(panel, edit_mode_insert);
 }
 
 void
@@ -1316,7 +1314,6 @@ panel_line_add_below(struct Panel *panel)
 
 	panel->pos.y += 1;
 	panel_line_add(panel);
-	panel_edit_mode_change(panel, edit_mode_insert);
 }
 
 void
@@ -1326,59 +1323,59 @@ panel_input(struct Panel *panel)
 	{
 	case edit_mode_normal:
 	{
-		/* Modes */
-		if(key_press(key_i))
+		for(u32 key = 0; key < KEY_MAX; ++key)
 		{
-			if(key_shift_down())
+			if(key_press(key) == false) continue;
+
+			if(key_shift_up())
 			{
-				panel_cursor_move_start(panel);
-				panel_edit_mode_change(panel, edit_mode_insert);
+				switch(key)
+				{
+				/* Middle Row */
+				case key_h: panel_cursor_move_left(panel); break;
+				case key_j: panel_cursor_move_down(panel); break;
+				case key_k: panel_cursor_move_up(panel); break;
+				case key_l: panel_cursor_move_right(panel); break;
+
+				case key_f: panel_cursor_move_word_next(panel); break;
+				case key_d: panel_cursor_move_word_prev(panel); break;
+
+				/* Top Left */
+				case key_w: panel_edit_mode_change(panel, edit_mode_visual); break;
+				case key_e: panel_edit_mode_change(panel, edit_mode_insert); break;
+
+				/* Top Right */
+				case key_o: panel_line_add_below(panel); break;
+				};
 			}
 			else
 			{
-				panel_edit_mode_change(panel, edit_mode_insert);
+				switch(key)
+				{
+				/* Middle Row */
+				case key_h: panel_cursor_move_start(panel); break;
+				case key_l: panel_cursor_move_end(panel); break;
+
+				case key_j: /* TODO: */; break;
+				case key_k: /* TODO: */; break;
+
+				case key_f: /* TODO: */; break;
+				case key_d: /* TODO: */; break;
+
+				/* Top Left */
+				case key_w: panel_edit_mode_change(panel, edit_mode_visual_line); break;
+				case key_e: panel_edit_mode_change(panel, edit_mode_replace); break;
+
+				/* Top Right */
+				case key_o: panel_line_add_above(panel); break;
+				}
 			}
 		}
-
-		if(key_press(key_a))
-		{
-			if(key_shift_down())
-			{
-				panel_cursor_move_end(panel);
-				panel_edit_mode_change(panel, edit_mode_insert);
-			}
-			else
-			{
-				panel_cursor_move_right(panel);
-				panel_edit_mode_change(panel, edit_mode_insert);
-			}
-		}
-
-		/* Movement */
-		/* TODO: These characters in uppercase do different things */
-		if(key_press(key_k)) panel_cursor_move_up(panel);
-		if(key_press(key_j)) panel_cursor_move_down(panel);
-		if(key_press(key_h)) panel_cursor_move_left(panel);
-		if(key_press(key_l)) panel_cursor_move_right(panel);
-
-		if(key_press(key_s)) panel_cursor_move_start(panel);
-		if(key_press(key_e)) panel_cursor_move_end(panel);
-
-		if(key_press(key_w)) panel_cursor_move_word_next(panel);
-		if(key_press(key_b)) panel_cursor_move_word_previous(panel);
-
-		/* Lines */
-		if(key_press(key_o))
-		{
-			#if 1
-			if(key_shift_down()) panel_line_add_above(panel);
-			else panel_line_add_below(panel);
-			#else
-			panel_line_add_below(panel);
-			#endif
-		}
-
 	} break;
+	case edit_mode_command:
+	{
+		if(key_press(key_escape)) panel_edit_mode_change(panel, edit_mode_normal);
+	}break;
 	case edit_mode_insert:
 	{
 		/* Return to normal mode */
@@ -1387,20 +1384,31 @@ panel_input(struct Panel *panel)
 		/* Process input */
 		for(u32 key = 0; key < KEY_MAX; ++key)
 		{
-			if(key_press(key))
+			if(key_press(key) == false) continue;
+
+			if(0) {}
+			else if(key == key_tab);
+			else if(key == key_enter) panel_line_add_below(panel);
+			else
 			{
-				if(0) {}
-				else if(key == key_tab);
-				else if(key == key_enter) panel_line_add_below(panel);
-				else
-				{
-					/* Enter characters */
-					char c = ascii_from_key(key);
-					if(c != '\0') panel_line_input(panel, c);
-				}
+				/* Enter characters */
+				char c = ascii_from_key(key);
+				if(c != '\0') panel_line_input(panel, c);
 			}
 		}
 	} break;
+	case edit_mode_replace:
+	{
+		if(key_press(key_escape)) panel_edit_mode_change(panel, edit_mode_normal);
+	}break;
+	case edit_mode_visual:
+	{
+		if(key_press(key_escape)) panel_edit_mode_change(panel, edit_mode_normal);
+	}break;
+	case edit_mode_visual_line:
+	{
+		if(key_press(key_escape)) panel_edit_mode_change(panel, edit_mode_normal);
+	}break;
 	default: break;
 	}
 }

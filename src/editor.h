@@ -94,7 +94,14 @@ struct PositionPointer
 enum EditMode
 {
 	edit_mode_normal,
+	edit_mode_command,
+
 	edit_mode_insert,
+	edit_mode_replace,
+	edit_mode_visual,
+	edit_mode_visual_line,
+
+	edit_mode_count,
 };
 
 struct Panel
@@ -113,10 +120,14 @@ struct Window
 };
 
 #define EDIT_MODE_STR_SIZE 20
-char edit_mode_str_table[][EDIT_MODE_STR_SIZE] =
+char edit_mode_str_table[edit_mode_count][EDIT_MODE_STR_SIZE] =
 {
-	[edit_mode_normal] = "Normal",
-	[edit_mode_insert] = "Insert"
+	[edit_mode_normal]      = "Normal",
+	[edit_mode_command]     = "Command",
+	[edit_mode_insert]      = "Insert",
+	[edit_mode_replace]     = "Replace",
+	[edit_mode_visual]      = "Visual",
+	[edit_mode_visual_line] = "Visual-Line",
 };
 
 struct Editor
