@@ -1,22 +1,21 @@
 #define DRAW_CONTENT_BACKGROUND 0
 #define PRINT_MOVEMENT_INFO 0
 
-#ifdef EOF
-#undef EOF
-#endif
+/* End of  buffer */
+#define EOB     -1
+#define EOB_PTR NULL
 
-#define EOF     -1
-#define EOF_PTR NULL
-
-#define EOL     -1 /* Either end of line, or line is empty */
+/* End of line */
+#define EOL     -1
 #define EOL_PTR NULL
 
 /* Tokens to stop AT */
-u32 word_tokens_stop_at[] = {'_', '.', ',', ';', ':', '=', '+', '-', '(', ')', '{', '}'};
-
-/* TODO: You don't stop after you skip, you move to the next alphanum, skip all whitespace */
-/* Tokens to move one character over then stop */
-u32 word_tokens_stop_after[] = {' ', '_', '.', '(', '{'};
+u32 word_tokens_stop_at[] =
+{
+	'_', '.', ',', ';', ':',
+	'!', '%', '^', '&', '=', '+', '-', '*', '/', '\\',
+	'(', ')', '[', ']', '{', '}', '\'', '"'
+};
 
 struct Visual
 {

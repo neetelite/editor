@@ -1064,16 +1064,9 @@ editor_init(void)
 }
 
 void
-position_update_next_line(struct Position *position,
-			  struct PositionPointer *pointer)
-{
-	position->y += 1;
-}
-
-void
 position_update_prev_char(struct Position *pos, struct PositionPointer *ptr)
 {
-	bool is_end_of_content = true;
+	bool had_to_change_content = true;
 
 	if(pos->x == 0)
 	{
@@ -1092,14 +1085,14 @@ position_update_prev_char(struct Position *pos, struct PositionPointer *ptr)
 			ptr->line = buffer_line_get_by_id(ptr->buffer, pos->y);
 
 			/* We found a good line */
-			if(ptr->line->content_count) {ptr->content = line_content_get_last(ptr->line); break;}
+			if(ptr->line->char_count) {ptr->content = line_content_get_last(ptr->line); break;}
 		}
 	}
 	else if(pos->c == EOF) ptr->content = line_content_get_last(ptr->line);
 	else if(pos->i == 0) ptr->content = line_content_get_by_id(ptr->line, ptr->content->id-1);
-	else is_end_of_content = false;
+	else had_to_change_content = false;
 
-	if(is_end_of_content)
+	if(had_to_change_content)
 	{
 		ASSERT(ptr->content->char_count > 0);
 		pos->x = content_char_end(ptr->content)-1;
@@ -1115,57 +1108,134 @@ position_update_prev_char(struct Position *pos, struct PositionPointer *ptr)
 
 		ptr->c = &ptr->content->data[pos->i];
 	}
+
+	if(editor->print_movement_info)
+	{
+		printf("CHAR PREV\n");
+		position_print(pos);
+		printf("\n");
+	}
 }
 
 void
-position_update_next_char(struct Position *position,
-			  struct PositionPointer *pointer)
+position_update_next_char(struct Position *pos, struct PositionPointer *ptr)
 {
-	if(position->c == -1) return;
+	bool had_to_change_content = true;
 
-	position->x += 1;
-	/* End of Line */
-	if(position->x >= pointer->line->char_count)
+	if(pos->x+1 >= ptr->line->char_count)
 	{
-		/* End of buffer */
-		if(pointer->line->id >= pointer->buffer->line_count-1)
+		/* Find a next line with content */
+		loop
 		{
-			position->c = -1;
-			position->i = -1;
-			pointer->content = NULL;
-			pointer->c = NULL;
+			/* Buffer has no more contents */
+			if(ptr->line->id == ptr->buffer->line_count-1)
+			{
+				ptr->content = EOL_PTR;
+				ptr->c = EOL_PTR;
+				return;
+			}
 
-			return;
-		}
-		/* New line */
-		else
-		{
-			position->y += 1;
-			position->c = 0;
+			pos->y += 1;
+			ptr->line = buffer_line_get_by_id(ptr->buffer, pos->y);
 
-			pointer->line = buffer_line_get_by_id(pointer->buffer, position->y);
-			pointer->content = line_content_get_by_id(pointer->line, position->c);
-			pointer->c = &pointer->content->data[position->i];
+			/* We found a good line */
+			if(ptr->line->char_count)
+			{
+				ptr->content = line_content_get_first(ptr->line);
+				break;
+			}
 		}
 	}
-	/* End of content */
-	else if(position->x >= content_char_end(pointer->content))
+	else if(pos->i == ptr->content->char_count-1)
 	{
-		position->c += 1;
-		pointer->content = line_content_get_by_id(pointer->line, position->c);
+		ptr->content = line_content_get_by_id(ptr->line, ptr->content->id+1);
+	}
+	else had_to_change_content = false;
 
-		position->i = 0;
-		pointer->c = &pointer->content->data[position->i];
+	if(had_to_change_content)
+	{
+		pos->x = ptr->content->char_start;
+		pos->c = ptr->content->id;
+		pos->i = 0;
+
+		ptr->c = &ptr->content->data[pos->i];
 	}
 	else
 	{
-		position->i += 1;
-		pointer->c = &pointer->content->data[position->i];
+		pos->x += 1;
+		pos->i += 1;
+		ptr->c = &ptr->content->data[pos->i];
+	}
+
+	if(editor->print_movement_info)
+	{
+		printf("CHAR NEXT\n");
+		position_print(pos);
+		printf("\n");
 	}
 }
 
 void
-panel_cursor_move_word_prev(struct Panel *panel)
+panel_cursor_move_word_prev(struct Panel *panel, bool stop_at_token)
+{
+	struct Position pos_init = panel->pos;
+	struct Position pos_curr = panel->pos;
+	struct Position pos_prev = pos_curr;
+
+	struct PositionPointer pointer_curr = position_pointer_from_position(&panel->pos);
+	struct PositionPointer pointer_prev = pointer_curr;
+
+	/* NOTE: Unlike the move_word_next function we need to skip a char, because of how the cursor words */
+	position_update_prev_char(&pos_curr, &pointer_curr);
+	pos_prev = pos_curr;
+	pointer_prev = pointer_curr;
+
+	loop
+	{
+		position_update_prev_char(&pos_curr, &pointer_curr);
+
+		/* Beginning of buffer */
+		if(pos_prev.y == 0 && pos_prev.x == 0)
+		{
+			panel->pos = pos_init;
+			return;
+		}
+
+		/* Special characters */
+		if(stop_at_token)
+		{
+			for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
+			{
+				if(*pointer_prev.c == word_tokens_stop_at[i])
+				{
+					panel->pos = pos_prev;
+					return;
+				}
+			}
+		}
+
+		/* Beginning of word */
+		if(char_is_alpha(*pointer_curr.c) == false &&
+		   char_is_alpha(*pointer_prev.c) == true)
+		{
+			panel->pos = pos_prev;
+			return;
+		}
+
+		/* Beginning of line */
+		if(pos_curr.x == 0 && char_is_alpha(*pointer_curr.c))
+		{
+			panel->pos = pos_curr;
+			return;
+		}
+
+		pos_prev = pos_curr;
+		pointer_prev = pointer_curr;
+	}
+}
+
+void
+panel_cursor_move_word_next(struct Panel *panel, bool stop_at_token)
 {
 	struct Position pos_curr = panel->pos;
 	struct Position pos_prev = pos_curr;
@@ -1173,75 +1243,49 @@ panel_cursor_move_word_prev(struct Panel *panel)
 	struct PositionPointer pointer_curr = position_pointer_from_position(&panel->pos);
 	struct PositionPointer pointer_prev = pointer_curr;
 
-	/* Skip whitespace backward */
-	#if 1
-	position_update_prev_char(&pos_curr, &pointer_curr);
-	#else
 	loop
 	{
-		if(pointer_curr.c == NULL) break;
-		if(char_is_whitespace(*pointer_curr.c) == false) break;
+		position_update_next_char(&pos_curr, &pointer_curr);
+
+		/* End of buffer */
+		if(pos_curr.x+1 >= pointer_prev.line->char_count &&
+		   pos_curr.y+1 >= pointer_prev.buffer->line_count)
+		{
+			return;
+		}
+
+		/* Beginning of line */
+		if(pos_curr.x == 0 && char_is_alpha(*pointer_curr.c))
+		{
+			panel->pos = pos_curr;
+			return;
+		}
+
+		/* Beginning of word */
+		if(char_is_alpha(*pointer_curr.c) == true &&
+		   char_is_alpha(*pointer_prev.c) == false)
+		{
+			panel->pos = pos_curr;
+			return;
+		}
+
+		/* Special characters */
+		if(stop_at_token)
+		{
+			for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
+			{
+				if(*pointer_curr.c == word_tokens_stop_at[i])
+				{
+					panel->pos = pos_curr;
+					return;
+				}
+			}
+		}
 
 		pos_prev = pos_curr;
 		pointer_prev = pointer_curr;
-		position_update_prev_char(&pos_curr, &pointer_curr);
 	}
 
-	loop
-	{
-		if(char_is_alphanumeric(*pointer_curr.c) == false) break;
-
-		pos_prev = pos_curr;
-		pointer_prev = pointer_curr;
-		position_update_prev_char(&pos_curr, &pointer_curr);
-
-		#if 0
-		for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
-		{
-			if(*pointer.c == word_tokens_stop_at[i])
-			{
-				break;
-			}
-		}
-		#endif
-	}
-	#endif
-
-	panel->pos = pos_curr;
-}
-
-void
-panel_cursor_move_word_next(struct Panel *panel)
-{
-	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
-
-	char *previous = pointer.c;
-	u32 previous_y = panel->pos.y;
-	loop
-	{
-		position_update_next_char(&panel->pos, &pointer);
-
-		if(pointer.c == NULL) return;
-		if(previous_y < panel->pos.y) return;
-
-		for(u32 i = 0; i < COUNT(word_tokens_stop_after); ++i)
-		{
-			if((u32)*previous == word_tokens_stop_after[i])
-			{
-				return;
-			}
-		}
-
-		for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
-		{
-			if((u32)*pointer.c == word_tokens_stop_at[i])
-			{
-				return;
-			}
-		}
-
-		previous = pointer.c;
-	}
 }
 
 void
@@ -1341,8 +1385,8 @@ panel_input(struct Panel *panel)
 				case key_k: panel_cursor_move_up(panel); break;
 				case key_l: panel_cursor_move_right(panel); break;
 
-				case key_f: panel_cursor_move_word_next(panel); break;
-				case key_d: panel_cursor_move_word_prev(panel); break;
+				case key_f: panel_cursor_move_word_next(panel, true); break;
+				case key_d: panel_cursor_move_word_prev(panel, true); break;
 
 				/* Top Left */
 				case key_w: panel_edit_mode_change(panel, edit_mode_visual); break;
@@ -1363,8 +1407,8 @@ panel_input(struct Panel *panel)
 				case key_j: /* TODO: */; break;
 				case key_k: /* TODO: */; break;
 
-				case key_f: /* TODO: */; break;
-				case key_d: /* TODO: */; break;
+				case key_f: panel_cursor_move_word_next(panel, false); break;
+				case key_d: panel_cursor_move_word_prev(panel, false); break;
 
 				/* Top Left */
 				case key_w: panel_edit_mode_change(panel, edit_mode_visual_line); break;
