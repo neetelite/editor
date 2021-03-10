@@ -1130,6 +1130,10 @@ position_update_next_char(struct Position *pos, struct PositionPointer *ptr)
 			/* Buffer has no more contents */
 			if(ptr->line->id == ptr->buffer->line_count-1)
 			{
+				pos->x += 1;
+				pos->c = EOL;
+				pos->i = EOL;
+
 				ptr->content = EOL_PTR;
 				ptr->c = EOL_PTR;
 				return;
@@ -1195,7 +1199,7 @@ panel_cursor_move_word_prev(struct Panel *panel, bool stop_at_token)
 		position_update_prev_char(&pos_curr, &pointer_curr);
 
 		/* Beginning of buffer */
-		if(pos_prev.y == 0 && pos_prev.x == 0)
+		if(pointer_prev.c == NULL)
 		{
 			panel->pos = pos_init;
 			return;
@@ -1213,6 +1217,13 @@ panel_cursor_move_word_prev(struct Panel *panel, bool stop_at_token)
 				}
 			}
 		}
+
+		if(pointer_curr.c == NULL)
+		{
+			panel->pos = pos_init;
+			return;
+		}
+
 
 		/* Beginning of word */
 		if(char_is_alpha(*pointer_curr.c) == false &&
@@ -1248,7 +1259,7 @@ panel_cursor_move_word_next(struct Panel *panel, bool stop_at_token)
 		position_update_next_char(&pos_curr, &pointer_curr);
 
 		/* End of buffer */
-		if(pos_curr.x+1 >= pointer_prev.line->char_count &&
+		if(pos_curr.x >= pointer_prev.line->char_count &&
 		   pos_curr.y+1 >= pointer_prev.buffer->line_count)
 		{
 			return;
