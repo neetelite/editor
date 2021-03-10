@@ -214,10 +214,14 @@ content_char_draw(struct Content *content, u32 char_index, v4 color)
 }
 
 void
-panel_content_draw(struct Panel *panel, struct Content *content)
+panel_line_content_draw(struct Panel *panel, struct Line *line, struct Content *content)
 {
 	/* TEMPORARY: We need to find the exact char_width */
-	f32 nw = editor->line_number_width;
+	/* HERE */
+	f32 tab = editor->tab_size * editor->space_size * line->indent;
+	f32 padding = editor->line_number_width + editor->margin_left + tab;
+	//f32 padding = editor->line_number_width + editor->margin_left;
+
 	mat4 mat_view = editor->camera.transform;
 	v4 color = V4_COLOR_WHITE;
 
@@ -234,8 +238,8 @@ panel_content_draw(struct Panel *panel, struct Content *content)
 		struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 		gl_texture_bind(&texture, GL_TEXTURE_2D);
 
-		v2 min = v2_a(visual->rec.start, V2(editor->margin_left+nw, 0));
-		v2 max = v2_a(visual->rec.end, V2(editor->margin_left+nw, 0));
+		v2 min = v2_a(visual->rec.start, V2(editor->margin_left+padding, 0));
+		v2 max = v2_a(visual->rec.end, V2(editor->margin_left+padding, 0));
 
 		struct Rec2 rec = REC2(min, max);
 		struct Box2 box = box2_from_rec2(rec);
@@ -498,7 +502,6 @@ panel_line_number_draw(struct Panel *panel, struct Line *line)
 void
 panel_line_draw(struct Panel *panel, struct Line *line)
 {
-
 	panel_line_number_draw(panel, line);
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
@@ -508,8 +511,8 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 		{
 
 			f32 y = HEIGHT - (editor->font.height * (line->id + 1));
-			f32 ml = editor->margin_left;
-			f32 nw = editor->line_number_width;
+			f32 tab = editor->tab_size * editor->space_size * line->indent;
+			f32 padding = editor->line_number_width + editor->margin_left + tab;
 			if(content->char_count != 0)
 			{
 				v4 color = V4_ZERO;
@@ -530,18 +533,19 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 
 				/* TODO: Put this in shift update */
 				struct Visual *visual = content->visual;
-				v2 start = V2(visual[0].rec.start.x +ml+nw, y);
+				v2 start = V2(visual[0].rec.start.x+padding, y);
 				v2 end = V2_ZERO;
 
 				if(line->content_count > 1 && i < line->content_count - 1)
 				{
 					struct Content *content_next = &line->contents[i+1];
 					struct Visual *visual_next = content_next->visual;
-					end = V2(visual_next[0].rec.start.x + ml+nw, y+editor->font.height);
+					end = V2(visual_next[0].rec.start.x+padding, y+editor->font.height);
 				}
 				else
 				{
-					end = V2(visual[content->char_count-1].rec.end.x +ml+nw, y+editor->font.height);
+					end = V2(visual[content->char_count-1].rec.end.x+padding,
+						 y+editor->font.height);
 				}
 
 				struct Rec2 content_rec = REC2(start, end);
@@ -551,7 +555,7 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 			}
 		}
 
-		panel_content_draw(panel, content);
+		panel_line_content_draw(panel, line, content);
 	}
 }
 
@@ -784,10 +788,11 @@ panel_cursor_draw(struct Panel *panel)
 	v2 cursor_dim = V2(char_width, char_height);
 
 	f32 start_y = HEIGHT - (editor->font.height * (line->id + 1));
-	f32 padding = editor->line_number_width + editor->margin_left;
+	f32 tab = editor->tab_size * editor->space_size * line->indent;
+	f32 padding = editor->line_number_width + editor->margin_left + tab;
 
-	v2 start = V2_ZERO;;
-	v2 end = V2_ZERO;;
+	v2 start = V2_ZERO;
+	v2 end = V2_ZERO;
 
 	if(panel->pos.x == 0)
 	{
@@ -799,6 +804,7 @@ panel_cursor_draw(struct Panel *panel)
 		if(panel->pos.c == EOL)
 		{
 			struct Content *content_last = line_content_get_last(line);
+
 			struct Rec2 *rec_last = &content_last->visual[content_last->char_count-1].rec;
 			start = V2(padding+rec_last->end.x, start_y);
 			end = v2_a(start, cursor_dim);
@@ -954,9 +960,13 @@ panel_new(struct Buffer *buffer)
 void
 panel_bar_draw(struct Panel *panel)
 {
+	f32 reduce = -5;
+	struct Rec2 rec = REC2(V2(0, 0), V2(WIDTH, editor->font.height + reduce));
+	rec2_draw(&rec, gl->projection_2d, canvas->z[layer_bar_background], V4_COLOR_WHITE);
+
 	/* Edit Mode */
 	cstr_draw(edit_mode_str_table[panel->edit_mode], EDIT_MODE_STR_SIZE,
-		  V2(0, 0), &editor->align_bar, canvas->z[layer_content_text], V4_COLOR_WHITE);
+		  V2(0, 0), &editor->align_bar, canvas->z[layer_bar_text], V4_COLOR_BLACK);
 }
 
 void
@@ -1031,8 +1041,13 @@ editor_init(void)
 
 	editor->align_bar    = ALIGN("left", "bottom");
 	editor->align_buffer = ALIGN("left", "top");
-	editor->line_number_width = 20.0;
+
+	editor->line_number_width = 30.0;
 	editor->margin_left = 5.0;
+
+	editor->space_size = 10.0;
+	editor->tab_size = 8;
+
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
 	#if 0
@@ -1376,6 +1391,25 @@ panel_line_add_below(struct Panel *panel)
 }
 
 void
+panel_line_indent_right(struct Panel *panel, u32 line_id)
+{
+	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
+	struct Line *line = buffer_line_get_by_id(buffer, line_id);
+
+	line->indent += 1;
+}
+
+void
+panel_line_indent_left(struct Panel *panel, u32 line_id)
+{
+	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
+	struct Line *line = buffer_line_get_by_id(buffer, line_id);
+	if(line->indent == 0) return;
+
+	line->indent -= 1;
+}
+
+void
 buffer_write_path(struct Buffer *buffer, String path)
 {
 	/* LEARN: Is it better to append to a file, or append to a buffer and then write to a file? */
@@ -1398,6 +1432,7 @@ buffer_write_path(struct Buffer *buffer, String path)
 	for(i32 line_id = 0; line_id < buffer->line_count; ++line_id)
 	{
 		struct Line *line =  &buffer->lines[line_id];
+		for(i32 i = 0; i < line->indent; ++i) buf_push_u8(&at, '\t');
 		for(i32 content_id = 0; content_id < line->content_count; content_id += 1)
 		{
 			struct Content *content = &line->contents[content_id];
@@ -1405,7 +1440,6 @@ buffer_write_path(struct Buffer *buffer, String path)
 
 			buf_push_bytes(&at, content->data, content->char_count);
 		}
-		for(i32 i = 0; i < line->indent; ++i) buf_push_u8(&at, '\t');
 		if(line->id != buffer->line_count-1) buf_push_u8(&at, '\n');
 	}
 
@@ -1484,13 +1518,16 @@ buffer_read_path(struct Buffer *buffer, String path)
 
 		switch(*at)
 		{
-		case '\t': break;
+		case '\t':
+		{
+			panel_line_indent_right(&panel, panel.pos.y);
+		} break;
 		case '\n':
 		{
 			panel_line_add_below(&panel);
 			panel_cursor_move_down(&panel);
 			panel_cursor_move_start(&panel);
-		};
+		} break;
 		default:
 		{
 			panel_line_input(&panel, *at);
@@ -1511,14 +1548,15 @@ panel_input(struct Panel *panel)
 	if(key_alt_down())
 	{
 		struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
-		String path = STR("./test_file.txt");
+		String path_read = STR("./test_read.txt");
+		String path_write = STR("./test_write.txt");
 		if(key_down(key_w))
 		{
-			buffer_write_path(buffer, path);
+			buffer_write_path(buffer, path_write);
 		}
 		else if(key_down(key_r))
 		{
-			buffer_read_path(buffer, path);
+			buffer_read_path(buffer, path_read);
 		}
 	}
 
@@ -1550,6 +1588,7 @@ panel_input(struct Panel *panel)
 				case key_e: panel_edit_mode_change(panel, edit_mode_insert); break;
 
 				/* Top Right */
+				case key_i: panel_line_indent_right(panel, panel->pos.y); break;
 				case key_o: panel_line_add_below(panel); break;
 				};
 			}
@@ -1572,6 +1611,7 @@ panel_input(struct Panel *panel)
 				case key_e: panel_edit_mode_change(panel, edit_mode_replace); break;
 
 				/* Top Right */
+				case key_i: panel_line_indent_left(panel, panel->pos.y); break;
 				case key_o: panel_line_add_above(panel); break;
 				}
 			}

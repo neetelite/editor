@@ -36,6 +36,9 @@ struct Content
 	u32 size_alloc;
 	char *data;
 	struct Visual *visual; /* Allocation combined with *data */
+
+	bool flag_draw;
+	bool flag_update;
 };
 
 struct Line
@@ -62,12 +65,6 @@ struct Buffer
 	u32 char_count;
 };
 
-struct Screen
-{
-	/* Data about the area that is visible */
-	i32 _ignore;
-};
-
 struct Position
 {
 	i64 b; /* buffer id */
@@ -79,12 +76,6 @@ struct Position
 
 	bool x_min_active;
 	u32 x_min;
-};
-
-struct Range
-{
-	struct Position start;
-	struct Position end;
 };
 
 struct PositionPointer
@@ -106,6 +97,18 @@ enum EditMode
 	edit_mode_visual_line,
 
 	edit_mode_count,
+};
+
+struct Range
+{
+	struct Position start;
+	struct Position end;
+};
+
+struct Screen
+{
+	/* Data about the area that is visible */
+	struct Range range;
 };
 
 struct Panel
@@ -149,8 +152,12 @@ struct Editor
 	struct Asset_Font font;
 	struct Alignment align_bar;
 	struct Alignment align_buffer;
+
 	f32 line_number_width;
 	f32 margin_left;
+	f32 space_size;
+	u32 tab_size;
+
 	v4 color_background;
 
 	u32 content_min;
@@ -211,5 +218,3 @@ void editor_input(void);
 void editor_update(void);
 void editor_draw(void);
 #endif
-
-/* Working on */
