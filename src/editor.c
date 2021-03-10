@@ -1035,7 +1035,7 @@ editor_init(void)
 	editor->margin_left = 5.0;
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
-	#if 1
+	#if 0
 	editor->content_min = 128;
 	editor->content_max = 128;
 	#else
@@ -1071,60 +1071,49 @@ position_update_next_line(struct Position *position,
 }
 
 void
-position_update_previous_char(struct Position *position,
-			      struct PositionPointer *pointer)
+position_update_prev_char(struct Position *pos, struct PositionPointer *ptr)
 {
-	if(pointer->c == NULL)
-	{
-		if(line_is_empty(pointer->line))
-		{
-			return;
-		}
-		else
-		{
-			position->x -= 1;
-			position->c = pointer->line->content_count-1;
-			pointer->content = line_content_get_by_id(pointer->line, position->c);
+	bool is_end_of_content = true;
 
-			position->i = pointer->content->char_count-1;
-			pointer->c = &pointer->content->data[position->i];
+	if(pos->x == 0)
+	{
+		/* Find a previous line with content */
+		loop
+		{
+			/* Buffer has no content */
+			if(ptr->line->id == 0)
+			{
+				ptr->content = EOL_PTR;
+				ptr->c = EOL_PTR;
+				return;
+			}
+
+			pos->y -= 1;
+			ptr->line = buffer_line_get_by_id(ptr->buffer, pos->y);
+
+			/* We found a good line */
+			if(ptr->line->content_count) {ptr->content = line_content_get_last(ptr->line); break;}
 		}
 	}
-	else if(position->x == 0)
+	else if(pos->c == EOF) ptr->content = line_content_get_last(ptr->line);
+	else if(pos->i == 0) ptr->content = line_content_get_by_id(ptr->line, ptr->content->id-1);
+	else is_end_of_content = false;
+
+	if(is_end_of_content)
 	{
-		if(position->y == 0)
-		{
-			return;
-		}
-		else
-		{
-			position->y -= 1;
-			pointer->line = buffer_line_get_by_id(pointer->buffer, position->y);
-			position->x = pointer->line->char_count-1;
+		ASSERT(ptr->content->char_count > 0);
+		pos->x = content_char_end(ptr->content)-1;
+		pos->c = ptr->content->id;
+		pos->i = ptr->content->char_count-1;
 
-			position->c = pointer->line->content_count-1;
-			pointer->content = line_content_get_by_id(pointer->line, position->c);
-
-			position->i = pointer->content->char_count-1;
-			pointer->c = &pointer->content->data[position->i];
-		}
+		ptr->c = &ptr->content->data[pos->i];
 	}
 	else
 	{
-		position->x -= 1;
-		if(position->i == 0)
-		{
-			position->c -= 1;
-			pointer->content = line_content_get_by_id(pointer->line, position->c);
+		pos->x -= 1;
+		pos->i -= 1;
 
-			position->i = pointer->content->char_count-1;
-			pointer->c = &pointer->content->data[position->i];
-		}
-		else
-		{
-			position->i -= 1;
-			pointer->c = &pointer->content->data[position->i];
-		}
+		ptr->c = &ptr->content->data[pos->i];
 	}
 }
 
@@ -1178,32 +1167,47 @@ position_update_next_char(struct Position *position,
 void
 panel_cursor_move_word_prev(struct Panel *panel)
 {
-	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
+	struct Position pos_curr = panel->pos;
+	struct Position pos_prev = pos_curr;
 
-	position_update_previous_char(&panel->pos, &pointer);
+	struct PositionPointer pointer_curr = position_pointer_from_position(&panel->pos);
+	struct PositionPointer pointer_prev = pointer_curr;
+
+	/* Skip whitespace backward */
+	#if 1
+	position_update_prev_char(&pos_curr, &pointer_curr);
+	#else
 	loop
 	{
+		if(pointer_curr.c == NULL) break;
+		if(char_is_whitespace(*pointer_curr.c) == false) break;
+
+		pos_prev = pos_curr;
+		pointer_prev = pointer_curr;
+		position_update_prev_char(&pos_curr, &pointer_curr);
+	}
+
+	loop
+	{
+		if(char_is_alphanumeric(*pointer_curr.c) == false) break;
+
+		pos_prev = pos_curr;
+		pointer_prev = pointer_curr;
+		position_update_prev_char(&pos_curr, &pointer_curr);
+
+		#if 0
 		for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
 		{
-			if((u32)*pointer.c == word_tokens_stop_at[i])
+			if(*pointer.c == word_tokens_stop_at[i])
 			{
-				return;
+				break;
 			}
 		}
-
-		position_update_previous_char(&panel->pos, &pointer);
-
-		if(panel->pos.y == 0 && panel->pos.x == 0) return;
-
-		for(u32 i = 0; i < COUNT(word_tokens_stop_after); ++i)
-		{
-			if((u32)*pointer.c == word_tokens_stop_after[i])
-			{
-				position_update_next_char(&panel->pos, &pointer);
-				return;
-			}
-		}
+		#endif
 	}
+	#endif
+
+	panel->pos = pos_curr;
 }
 
 void
