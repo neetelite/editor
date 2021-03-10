@@ -46,6 +46,8 @@ struct Line
 	u32 content_count;
 	u32 content_max;
 	struct Content *contents;
+
+	u32 indent;
 };
 
 struct Buffer
@@ -55,6 +57,9 @@ struct Buffer
 	u32 line_count;
 	u32 line_max;
 	struct Line *lines;
+
+	/* TODO: update this manually each time we add or remove a character */
+	u32 char_count;
 };
 
 struct Screen

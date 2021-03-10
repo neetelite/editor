@@ -1376,8 +1376,154 @@ panel_line_add_below(struct Panel *panel)
 }
 
 void
+buffer_write_path(struct Buffer *buffer, String path)
+{
+	/* LEARN: Is it better to append to a file, or append to a buffer and then write to a file? */
+
+	/* Write to a data buffer first */
+	u64 file_size = 0;
+	for(i32 i = 0; i < buffer->line_count; ++i)
+	{
+		/* NOTE: +1 is a '\n' */
+		/* TODO: File indent, each indent is a '\t' */
+		struct Line *line = &buffer->lines[i];
+		file_size += line->indent;
+		file_size += line->char_count;
+		if(line->id != buffer->line_count-1) file_size += 1; /* newline */
+	}
+
+	char *file_data = mem_alloc(file_size, false);
+	Byte *at = (Byte *)file_data;
+
+	for(i32 line_id = 0; line_id < buffer->line_count; ++line_id)
+	{
+		struct Line *line =  &buffer->lines[line_id];
+		for(i32 content_id = 0; content_id < line->content_count; content_id += 1)
+		{
+			struct Content *content = &line->contents[content_id];
+			if(content->char_count == 0) continue;
+
+			buf_push_bytes(&at, content->data, content->char_count);
+		}
+		for(i32 i = 0; i < line->indent; ++i) buf_push_u8(&at, '\t');
+		if(line->id != buffer->line_count-1) buf_push_u8(&at, '\n');
+	}
+
+	/* Write to file */
+	File file = file_init(path);
+	file_open(&file, file_mode_write);
+
+	file_write(&file, file_data, file_size);
+
+	file_close(&file);
+	mem_free(file_data);
+}
+
+void
+buffer_free(struct Buffer *buffer)
+{
+	for(u32 line_id = 0; line_id < buffer->line_count; line_id += 1)
+	{
+		struct Line *line = &buffer->lines[line_id];
+		for(u32 content_id = 0; content_id < line->content_count; content_id += 1)
+		{
+			struct Content *content = &line->contents[content_id];
+			if(content->data) mem_free(content->data);
+		}
+		if(line->contents) mem_free(line->contents);
+	}
+	mem_free(buffer->lines);
+	*buffer = (struct Buffer){0};
+}
+
+void
+buffer_reset(struct Buffer *buffer)
+{
+	/* TODO: Check if it actually needs to be freed */
+	buffer_free(buffer);
+	*buffer = buffer_new();
+}
+
+void
+buffer_read_path(struct Buffer *buffer, String path)
+{
+	/* Read from file */
+	File file = file_init(path);
+	file_open(&file, file_mode_read);
+
+	u64 filesize = file_size(&file);
+	if(filesize == 0)
+	{
+		FATAL("This shouldn't be happening!\n");
+		file_close(&file);
+		return;
+	}
+
+	char *file_data = mem_alloc(filesize+1, false);
+	file_data[filesize] = '\0';
+
+	file_read(&file, file_data, filesize);
+	file_close(&file);
+
+	/* Read into buffer */
+	buffer_reset(buffer);
+
+	struct Line *first_line = buffer_line_get_by_id(buffer, 0);
+	line_init(first_line);
+	first_line->content_count += 1;
+
+	struct Content *first_content = line_content_get_by_id(first_line, 0);
+	*first_content = content_new(0, 0, 0);
+
+	struct Panel panel = panel_new(buffer);
+
+	char *at = file_data;
+	loop
+	{
+		if(*at == '\0') break;
+
+		switch(*at)
+		{
+		case '\t': break;
+		case '\n':
+		{
+			panel_line_add_below(&panel);
+			panel_cursor_move_down(&panel);
+			panel_cursor_move_start(&panel);
+		};
+		default:
+		{
+			panel_line_input(&panel, *at);
+		} break;
+		}
+
+
+		at += 1;
+	}
+
+	mem_free(file_data);
+}
+
+void
 panel_input(struct Panel *panel)
 {
+	/* All Modes */
+	if(key_alt_down())
+	{
+		struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
+		String path = STR("./test_file.txt");
+		if(key_down(key_w))
+		{
+			buffer_write_path(buffer, path);
+		}
+		else if(key_down(key_r))
+		{
+			buffer_read_path(buffer, path);
+		}
+	}
+
+
+	/* Specific Mode */
 	switch(panel->edit_mode)
 	{
 	case edit_mode_normal:
@@ -1439,6 +1585,8 @@ panel_input(struct Panel *panel)
 	{
 		/* Return to normal mode */
 		if(key_press(key_escape)) panel_edit_mode_change(panel, edit_mode_normal);
+
+		if(key_alt_down() || key_ctrl_down()) break;
 
 		/* Process input */
 		for(u32 key = 0; key < KEY_MAX; ++key)
@@ -1533,5 +1681,3 @@ editor_draw(void)
 	rec2_draw(&rec, editor->camera.transform, canvas->z[layer_content_text], V4_COLOR_RED);
 	#endif
 }
-
-/* Working on */
