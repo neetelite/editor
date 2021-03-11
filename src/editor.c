@@ -776,6 +776,37 @@ panel_cursor_move_end(struct Panel *panel)
 	}
 }
 
+void
+panel_cursor_move_prev_empty_line(struct Panel *panel)
+{
+	/* TODO: */
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	for(i32 line_id = ptr.line->id-1; line_id >= 0; --line_id)
+	{
+		struct Line *line = buffer_line_get_by_id(ptr.buffer, line_id);
+		if(line->char_count == 0)
+		{
+			panel_cursor_move_to_line(panel, line);
+			break;
+		}
+	}
+}
+
+void
+panel_cursor_move_next_empty_line(struct Panel *panel)
+{
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	for(i32 line_id = ptr.line->id+1; line_id < ptr.buffer->line_count; ++line_id)
+	{
+		struct Line *line = buffer_line_get_by_id(ptr.buffer, line_id);
+		if(line->char_count == 0)
+		{
+			panel_cursor_move_to_line(panel, line);
+			break;
+		}
+	}
+}
+
 /* TODO: Change this to panel */
 void
 panel_cursor_draw(struct Panel *panel)
@@ -1649,8 +1680,8 @@ panel_input(struct Panel *panel)
 				case key_h: panel_cursor_move_start(panel); break;
 				case key_l: panel_cursor_move_end(panel); break;
 
-				case key_j: /* TODO: */; break;
-				case key_k: /* TODO: */; break;
+				case key_j: panel_cursor_move_next_empty_line(panel); break;
+				case key_k: panel_cursor_move_prev_empty_line(panel); break;
 
 				case key_f: panel_cursor_move_word_next(panel, false); break;
 				case key_d: panel_cursor_move_word_prev(panel, false); break;
