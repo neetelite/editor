@@ -98,44 +98,20 @@ content_new(u32 id, u32 start, u32 count)
 void
 content_data_shift_update(struct Position *position)
 {
-	struct PositionPointer pointer = position_pointer_from_position(position);
-
-	struct Content *current = pointer.content;
-	struct Content *previous = line_content_get_previous(pointer.line, current);
+	struct PositionPointer ptr = position_pointer_from_position(position);
+	struct Content *content = ptr.content;
 
 	f32 scale = 1.0;
 
 	v2 pos = V2_ZERO;
-	u32 codepoint_previous;
-
-	/* Get the previous codepoint and the beginning of the last character */
-	if(position->i == 0)
-	{
-		if(position->c == 0)
-		{
-			codepoint_previous = 0;
-			pos.x = 0.0;
-		}
-		else
-		{
-			u32 previous_index = previous->char_count-1;
-			codepoint_previous = previous->data[previous_index];
-			pos.x = previous->visual[previous_index].rec.start.x;
-		}
-	}
-	else
-	{
-		u32 previous_index = position->i - 1;
-		codepoint_previous = current->data[previous_index];
-		pos.x = current->visual[previous_index].rec.start.x;
-	}
-	pos.y = HEIGHT - (editor->font.height * (1 + position->y));
-
 	v2 min, max;
-	for(u32 i = position->i; i < current->char_count; ++i)
+	u32 codepoint_previous = 0;
+
+	//for(u32 i = pos->i; i < current->char_count; ++i)
+	for(u32 i = 0; i < content->char_count; ++i)
 	{
-		struct Visual *visual = &current->visual[i];
-		u32 codepoint = current->data[i];
+		struct Visual *visual = &content->visual[i];
+		u32 codepoint = content->data[i];
 
 		v2 advance = V2_ZERO;
 		advance.x = scale*font_kerning_get(&editor->font, codepoint, codepoint_previous);
@@ -148,6 +124,7 @@ content_data_shift_update(struct Position *position)
 
 		v2 render_pos = v2_s(pos, baseline_align);
 
+		/* TODO: Don't use the current codepoint, use a space codepoint maybe? */
 		if(char_is_whitespace(codepoint))
 		{
 			f32 end_x = font_kerning_get(&editor->font, codepoint, codepoint);
@@ -164,6 +141,10 @@ content_data_shift_update(struct Position *position)
 
 		codepoint_previous = codepoint;
 	}
+
+	content->rec = REC2(content->visual[0].rec.start, content->visual[content->char_count-1].rec.end);
+	content->rec.start.y = 0;
+	content->rec.end.y = editor->font.height;
 }
 
 void
@@ -218,7 +199,6 @@ panel_line_content_background_draw(struct Panel *panel, struct Line *line, struc
 {
 	f32 y = HEIGHT - (editor->font.height * (line->id + 1));
 	f32 tab = editor->tab_size * editor->space_size * line->indent;
-	f32 padding = editor->line_number_width + editor->margin_left + tab;
 
 	v4 color = V4_ZERO;
 	if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
@@ -236,26 +216,19 @@ panel_line_content_background_draw(struct Panel *panel, struct Line *line, struc
 	    else color = v4_mf(color, 0.5);
 	}
 
-	/* TODO: Put this in shift update */
-	struct Visual *visual = content->visual;
-	v2 start = V2(visual[0].rec.start.x+padding, y);
-	v2 end = V2_ZERO;
+	f32 offset_x = editor->line_number_width + editor->margin_left + tab;
+	f32 offset_y = HEIGHT - (editor->font.height * (1 + line->id));
+	v2 offset = V2(offset_x, offset_y);
 
-	if(line->content_count > 1 && content->id < line->content_count - 1)
+	struct Rec2 content_rec = {0};
+	content_rec.start = v2_a(content->rec.start, offset);
+	content_rec.end = v2_a(content->rec.end, offset);
+
+	if(rec2_overlap(&content_rec, &panel->screen.rec))
 	{
-		struct Content *content_next = &line->contents[content->id+1];
-		struct Visual *visual_next = content_next->visual;
-		end = V2(visual_next[0].rec.start.x+padding, y+editor->font.height);
+		rec2_draw(&content_rec, editor->camera.transform,
+			  canvas->z[layer_content_background], color);
 	}
-	else
-	{
-		end = V2(visual[content->char_count-1].rec.end.x+padding,
-			    y+editor->font.height);
-	}
-
-	struct Rec2 content_rec = REC2(start, end);
-
-	rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
 }
 
 void
@@ -263,8 +236,12 @@ panel_line_content_text_draw(struct Panel *panel, struct Line *line, struct Cont
 {
 	/* TEMPORARY: We need to find the exact char_width */
 	/* HERE */
+
 	f32 tab = editor->tab_size * editor->space_size * line->indent;
-	f32 padding = editor->line_number_width + editor->margin_left + tab;
+
+	f32 offset_x = editor->line_number_width + editor->margin_left + tab;
+	f32 offset_y = HEIGHT - (editor->font.height * (1 + line->id));
+	v2 offset = V2(offset_x, offset_y);
 
 	mat4 mat_view = editor->camera.transform;
 	v4 color = V4_COLOR_WHITE;
@@ -279,11 +256,13 @@ panel_line_content_text_draw(struct Panel *panel, struct Line *line, struct Cont
 		struct Visual *visual = &content->visual[i];
 		u32 codepoint = content->data[i];
 
+		if(rec2_overlap(&panel->screen.rec, &visual->rec) == false) continue;
+
 		struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 		gl_texture_bind(&texture, GL_TEXTURE_2D);
 
-		v2 min = v2_a(visual->rec.start, V2(padding, 0));
-		v2 max = v2_a(visual->rec.end, V2(padding, 0));
+		v2 min = v2_a(visual->rec.start, offset);
+		v2 max = v2_a(visual->rec.end, offset);
 
 		struct Rec2 rec = REC2(min, max);
 		struct Box2 box = box2_from_rec2(rec);
@@ -358,32 +337,40 @@ buffer_grow(struct Buffer *buffer)
 void
 line_content_shift_update(struct Position *pos)
 {
-	struct PositionPointer pointer = position_pointer_from_position(pos);
+	/* This function updates char_counts and content data */
 
-	struct Position position = *pos;
-	for(u32 content_id = pos->c; content_id < pointer.line->content_count; ++content_id)
+	struct PositionPointer ptr = position_pointer_from_position(pos);
+	struct Position pos_new = *pos;
+
+	/* From current content to last content */
+	for(u32 content_id = pos->c; content_id < ptr.line->content_count; ++content_id)
 	{
 
-		struct Content *current = line_content_get_by_id(pointer.line, content_id);
-		current->id = content_id;
-		if(content_id == 0)
+		/* Update char start */
+		struct Content *content = line_content_get_by_id(ptr.line, content_id);
+		if(content->id == 0)
 		{
-			current->char_start = 0;
+			content->char_start = 0;
 		}
 		else
 		{
-			struct Content *previous = line_content_get_by_id(pointer.line, content_id - 1);
-			current->char_start = previous->char_start + previous->char_count;
+			struct Content *content_prev = line_content_get_by_id(ptr.line, content->id - 1);
+			content->char_start = content_char_end(content_prev);
 		}
 
-		position.c = content_id;
-		if(content_id != pointer.content->id) position.i = 0;
+		/* Set the correct content and update it */
+		pos_new.c = content->id;
+		if(content->id != pos->c) pos_new.i = 0;
 
-		content_data_shift_update(&position);
+		content_data_shift_update(&pos_new);
 	}
 
-	struct Content *last = line_content_get_last(pointer.line);
-	pointer.line->char_count = last->char_start + last->char_count;
+	/* Update line char count */
+	struct Content *content_last = line_content_get_last(ptr.line);
+	ptr.line->char_count = content_char_end(content_last);
+
+	/* TODO: Should I do a line REC for the visuals? */
+	//struct Content *content_first = ;
 }
 
 void
@@ -1101,10 +1088,19 @@ insert_character:
 }
 
 void
+panel_screen_background_draw(struct Panel *panel)
+{
+	struct Screen *screen = &panel->screen;
+	v4 color = v4_mf(V4_COLOR_WHITE, 0.1);
+	rec2_draw(&screen->rec, gl->projection_2d, canvas->z[layer_screen_background], color);
+}
+
+void
 panel_buffer_draw(struct Panel *panel)
 {
 	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
 
+	panel_screen_background_draw(panel);
 	for(u32 i = 0; i < buffer->line_count; ++i)
 	{
 		struct Line *line = &buffer->lines[i];
@@ -1118,6 +1114,10 @@ panel_new(struct Buffer *buffer)
 {
 	struct Panel result = {0};
 
+	result.screen.rec = REC2(V2(0, 0), V2(WIDTH, HEIGHT));
+	//result.screen.rec = REC2(V2(0, 0), V2(WIDTH/2, HEIGHT/2));
+
+	/* Position */
 	if(buffer == NULL)
 	{
 		result.pos.b = -1;

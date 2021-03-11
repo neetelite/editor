@@ -1,3 +1,5 @@
+Make it so that all content visual is updated as line 0, and then draw the Y based o the line it is in
+    You can also do this for contents, and only draw from x after the previous
 Make it so creating a new buffer doesn't also create a new line
 Edit buffer movement functions so it doesn't go over the end of the line
 Change the content shift to be like the line shift

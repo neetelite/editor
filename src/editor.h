@@ -36,6 +36,7 @@ struct Content
 	u32 size_alloc;
 	char *data;
 	struct Visual *visual; /* Allocation combined with *data */
+	struct Rec2 rec;
 
 	bool flag_draw;
 	bool flag_update;
@@ -108,7 +109,7 @@ struct Range
 struct Screen
 {
 	/* Data about the area that is visible */
-	struct Range range;
+	struct Rec2 rec;
 };
 
 struct Panel

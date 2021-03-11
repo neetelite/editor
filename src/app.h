@@ -1,4 +1,3 @@
-
 struct AppMemory
 {
 	Size size;
@@ -10,6 +9,8 @@ struct AppMemory
 enum Layer
 {
 	layer_background,
+
+	layer_screen_background,
 
 	layer_content_background,
 	layer_content_text,
