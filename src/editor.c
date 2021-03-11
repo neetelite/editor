@@ -17,6 +17,17 @@ POS(u32 b, u32 y, u32 x, i32 c, i32 i)
 	return(result);
 }
 
+v2
+panel_line_offset_gen(struct Panel *panel, struct Line *line)
+{
+	f32 tab = editor->tab_size * editor->space_size * line->indent;
+	f32 offset_x = (editor->line_number_width + editor->margin_left + tab) + panel->screen.pos.x;
+	f32 offset_y = (HEIGHT - (editor->font.height * (1 + line->id))) + panel->screen.pos.y;
+
+	v2 result = V2(offset_x, offset_y);
+	return(result);
+}
+
 struct PositionPointer
 position_pointer_from_position(struct Position *position)
 {
@@ -107,7 +118,8 @@ content_data_shift_update(struct Position *position)
 	v2 min, max;
 	u32 codepoint_previous = 0;
 
-	//for(u32 i = pos->i; i < current->char_count; ++i)
+	/* TODO: */
+	//for(u32 i = position->i; i < content->char_count; ++i)
 	for(u32 i = 0; i < content->char_count; ++i)
 	{
 		struct Visual *visual = &content->visual[i];
@@ -142,9 +154,21 @@ content_data_shift_update(struct Position *position)
 		codepoint_previous = codepoint;
 	}
 
-	content->rec = REC2(content->visual[0].rec.start, content->visual[content->char_count-1].rec.end);
-	content->rec.start.y = 0;
-	content->rec.end.y = editor->font.height;
+	/* Rec */
+	if(content->id == 0)
+	{
+		v2 start = V2(content->visual[0].rec.start.x, 0);
+		v2 end = V2(content->visual[content->char_count-1].rec.end.x, editor->font.height);
+		content->rec = REC2(start, end);
+
+	}
+	else
+	{
+		struct Content *prev = line_content_get_by_id(ptr.line, content->id - 1);
+		v2 start = V2(prev->rec.end.x, 0);
+		v2 end = v2_a(start, V2(content->visual[content->char_count-1].rec.end.x, editor->font.height));
+		content->rec = REC2(start, end);
+	}
 }
 
 void
@@ -195,53 +219,28 @@ content_char_draw(struct Content *content, u32 char_index, v4 color)
 }
 
 void
-panel_line_content_background_draw(struct Panel *panel, struct Line *line, struct Content *content)
+panel_content_background_draw(struct Panel *panel, struct Content *content,
+			      v2 offset, v4 color)
 {
-	f32 y = HEIGHT - (editor->font.height * (line->id + 1));
-	f32 tab = editor->tab_size * editor->space_size * line->indent;
-
-	v4 color = V4_ZERO;
-	if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
-	else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
-	else color = V4_COLOR_RED; /* SPLIT */
-
-	if(line->id % 2 == 0)
-	{
-	    if(content->id % 2 == 0) color = v4_mf(color, 0.5);
-	    else color = v4_mf(color, 0.3);
-	}
-	else
-	{
-	    if(content->id % 2 == 0) color = v4_mf(color, 0.3);
-	    else color = v4_mf(color, 0.5);
-	}
-
-	f32 offset_x = editor->line_number_width + editor->margin_left + tab;
-	f32 offset_y = HEIGHT - (editor->font.height * (1 + line->id));
-	v2 offset = V2(offset_x, offset_y);
-
 	struct Rec2 content_rec = {0};
 	content_rec.start = v2_a(content->rec.start, offset);
 	content_rec.end = v2_a(content->rec.end, offset);
 
+	#if 0
 	if(rec2_overlap(&content_rec, &panel->screen.rec))
 	{
 		rec2_draw(&content_rec, editor->camera.transform,
 			  canvas->z[layer_content_background], color);
 	}
+	#else
+	rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
+	#endif
 }
 
 void
-panel_line_content_text_draw(struct Panel *panel, struct Line *line, struct Content *content)
+panel_content_text_draw(struct Panel *panel, struct Content *content, v2 offset)
 {
-	/* TEMPORARY: We need to find the exact char_width */
-	/* HERE */
-
-	f32 tab = editor->tab_size * editor->space_size * line->indent;
-
-	f32 offset_x = editor->line_number_width + editor->margin_left + tab;
-	f32 offset_y = HEIGHT - (editor->font.height * (1 + line->id));
-	v2 offset = V2(offset_x, offset_y);
+	offset = v2_a(offset, content->rec.start);
 
 	mat4 mat_view = editor->camera.transform;
 	v4 color = V4_COLOR_WHITE;
@@ -256,7 +255,9 @@ panel_line_content_text_draw(struct Panel *panel, struct Line *line, struct Cont
 		struct Visual *visual = &content->visual[i];
 		u32 codepoint = content->data[i];
 
+		#if 0
 		if(rec2_overlap(&panel->screen.rec, &visual->rec) == false) continue;
+		#endif
 
 		struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 		gl_texture_bind(&texture, GL_TEXTURE_2D);
@@ -521,29 +522,52 @@ line_content_input(struct Position *pos, char c)
 void
 panel_line_number_draw(struct Panel *panel, struct Line *line)
 {
-	f32 char_height = editor->font.height;
-	v2 pos = V2(editor->margin_left, HEIGHT-(line->id*char_height));
-	char content[5];
+	f32 pos_x = editor->margin_left + panel->screen.pos.x;
+	f32 pos_y = (HEIGHT - (editor->font.height * line->id)) + panel->screen.pos.y;
+	v2 pos = V2(pos_x, pos_y);
 
-	snprintf(content, 5, "%d", line->id+1);
-	cstr_draw(content, (line->id/10)+1, pos, &editor->align_buffer,
-		  canvas->z[layer_content_text], V4_COLOR_RED);
+	char content[5];
+	if(line->id < 10) snprintf(content, 5, " %d", line->id);
+	else snprintf(content, 5, "%d", line->id);
+
+	cstr_draw(content, 5, pos, &editor->align_buffer, canvas->z[layer_content_text], V4_COLOR_RED);
 }
 
 void
 panel_line_draw(struct Panel *panel, struct Line *line)
 {
 	panel_line_number_draw(panel, line);
+	v2 offset = panel_line_offset_gen(panel, line);
+
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
 		struct Content *content = &line->contents[i];
 		if(content->char_count == 0) continue;
 
+		/* Background */
 		if(editor->draw_content_background)
 		{
-			panel_line_content_background_draw(panel, line, content);
+			v4 color = V4_ZERO;
+			if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
+			else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
+			else color = V4_COLOR_RED; /* SPLIT */
+
+			if(line->id % 2 == 0)
+			{
+			    if(content->id % 2 == 0) color = v4_mf(color, 0.5);
+			    else color = v4_mf(color, 0.3);
+			}
+			else
+			{
+			    if(content->id % 2 == 0) color = v4_mf(color, 0.3);
+			    else color = v4_mf(color, 0.5);
+			}
+
+			panel_content_background_draw(panel, content, offset, color);
 		}
-		panel_line_content_text_draw(panel, line, content);
+
+		/* Text */
+		panel_content_text_draw(panel, content, offset);
 	}
 }
 
@@ -794,6 +818,41 @@ panel_cursor_move_next_empty_line(struct Panel *panel)
 	}
 }
 
+void
+screen_update_rec(struct Screen *screen)
+{
+	//screen->rec = REC2(screen->pos, screen->dim);
+	//screen->rec = rec2_sort(screen->rec);
+}
+
+struct Screen
+screen_new()
+{
+	struct Screen result = {0};
+	result.pos = V2_ZERO;
+	result.dim = SCREEN_DIM;
+	screen_update_rec(&result);
+	return(result);
+}
+
+void
+panel_screen_move_up(struct Panel *panel)
+{
+	panel->screen.pos.y -= editor->font.height;
+	if(panel->screen.pos.y < 0) panel->screen.pos.y = 0;
+
+	screen_update_rec(&panel->screen);
+}
+
+void
+panel_screen_move_down(struct Panel *panel)
+{
+	panel->screen.pos.y += editor->font.height;
+	screen_update_rec(&panel->screen);
+}
+
+/* TODO: Change this to panel */
+
 /* TODO: Change this to panel */
 void
 panel_cursor_draw(struct Panel *panel)
@@ -805,17 +864,14 @@ panel_cursor_draw(struct Panel *panel)
 	f32 char_width = 10;
 	f32 char_height = editor->font.height;
 	v2 cursor_dim = V2(char_width, char_height);
-
-	f32 start_y = HEIGHT - (editor->font.height * (line->id + 1));
-	f32 tab = editor->tab_size * editor->space_size * line->indent;
-	f32 padding = editor->line_number_width + editor->margin_left + tab;
+	v2 offset = panel_line_offset_gen(panel, line);
 
 	v2 start = V2_ZERO;
 	v2 end = V2_ZERO;
 
 	if(panel->pos.x == 0)
 	{
-		start = V2(padding, start_y);
+		start = V2(0, 0);
 		end = v2_a(start, cursor_dim);
 	}
 	else
@@ -823,33 +879,31 @@ panel_cursor_draw(struct Panel *panel)
 		if(panel->pos.c == EOL)
 		{
 			struct Content *content_last = line_content_get_last(line);
-
-			struct Rec2 *rec_last = &content_last->visual[content_last->char_count-1].rec;
-			start = V2(padding+rec_last->end.x, start_y);
+			start = V2(content_last->rec.end.x, 0);
 			end = v2_a(start, cursor_dim);
 		}
 		else
 		{
 			/* TODO: Cursor width is the size of character width */
-			/* You need to get the previous content for that */
-
-			/* NOTE: You cannot get the current character becaues it may not be typed yet! */
-			struct Content *content = line_content_get_by_id(line, panel->pos.c);
+			struct Content *content_curr = line_content_get_by_id(line, panel->pos.c);
 			if(panel->pos.i == 0)
 			{
-				struct Content *content_prev = line_content_get_previous(line, content);
-				struct Rec2 *rec = &content_prev->visual[content_prev->char_count-1].rec;
-				start = V2(padding+rec->end.x, start_y);
+				struct Content *content_prev = line_content_get_previous(line, content_curr);
+				start = V2(content_prev->rec.end.x, 0);
 				end = v2_a(start, cursor_dim);
 			}
 			else
 			{
-				struct Rec2 *rec = &content->visual[panel->pos.i-1].rec;
-				start = V2(padding+rec->end.x, start_y);
+				/* NOTE: You cannot get the current character becaues it may not be typed yet! */
+				struct Rec2 *rec = &content_curr->visual[panel->pos.i-1].rec;
+				start = V2(content_curr->rec.start.x + rec->end.x, 0);
 				end = v2_a(start, cursor_dim);
 			}
 		}
 	}
+
+	start = v2_a(start, offset);
+	end = v2_a(end, offset);
 
 	struct Rec2 cursor = REC2(start, end);
 	rec2_draw(&cursor, editor->camera.transform, canvas->z[layer_cursor], V4_COLOR_RED);
@@ -1114,8 +1168,7 @@ panel_new(struct Buffer *buffer)
 {
 	struct Panel result = {0};
 
-	result.screen.rec = REC2(V2(0, 0), V2(WIDTH, HEIGHT));
-	//result.screen.rec = REC2(V2(0, 0), V2(WIDTH/2, HEIGHT/2));
+	result.screen = screen_new();
 
 	/* Position */
 	if(buffer == NULL)
@@ -1246,12 +1299,12 @@ editor_init(void)
 
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
-	#if 1
+	#if 0
 	editor->content_min = 128;
 	editor->content_max = 128;
 	#else
-	editor->content_min = 2;
-	editor->content_max = 2;
+	editor->content_min = 8;
+	editor->content_max = 8;
 	#endif
 
 	/* Camera */
@@ -1630,14 +1683,13 @@ panel_input(struct Panel *panel)
 		struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
 		String path_read = STR("./test_write.txt");
 		String path_write = STR("./test_write.txt");
-		if(key_down(key_w))
-		{
-			buffer_write_path(buffer, path_write);
-		}
-		else if(key_down(key_r))
-		{
-			buffer_read_path(buffer, path_read);
-		}
+
+		if(0) {}
+		else if(key_press(key_w)) buffer_write_path(buffer, path_write);
+		else if(key_press(key_r)) buffer_read_path(buffer, path_read);
+		else if(key_press(key_j)) panel_screen_move_down(panel);
+		else if(key_press(key_k)) panel_screen_move_up(panel);
+		return;
 	}
 
 

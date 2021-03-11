@@ -109,6 +109,9 @@ struct Range
 struct Screen
 {
 	/* Data about the area that is visible */
+	v2 pos; /* V2(0, 0) is the top left corner */
+	v2 dim;
+
 	struct Rec2 rec;
 };
 
