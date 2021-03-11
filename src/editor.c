@@ -1578,7 +1578,7 @@ buffer_write_path(struct Buffer *buffer, String path)
 
 	/* Write to file */
 	File file = file_init(path);
-	file_open(&file, file_mode_write);
+	file_open(&file, file_mode_byte_write);
 
 	file_write(&file, file_data, file_size);
 
@@ -1616,7 +1616,7 @@ buffer_read_path(struct Buffer *buffer, String path)
 {
 	/* Read from file */
 	File file = file_init(path);
-	file_open(&file, file_mode_read);
+	file_open(&file, file_mode_byte_read);
 
 	u64 filesize = file_size(&file);
 	if(filesize == 0)
@@ -1626,8 +1626,7 @@ buffer_read_path(struct Buffer *buffer, String path)
 		return;
 	}
 
-	char *file_data = mem_alloc(filesize+1, false);
-	file_data[filesize] = '\0';
+	char *file_data = mem_alloc(filesize, false);
 
 	file_read(&file, file_data, filesize);
 	file_close(&file);
@@ -1644,10 +1643,14 @@ buffer_read_path(struct Buffer *buffer, String path)
 
 	struct Panel panel = panel_new(buffer);
 
-	char *at = file_data;
-	loop
+	for(u32 i = 0; i < filesize; ++i)
 	{
-		if(*at == '\0') break;
+		char *at = &file_data[i];
+
+		if(i >= filesize - 45)
+		{
+			u32 breakpoint = 0;
+		}
 
 		switch(*at)
 		{
@@ -1655,6 +1658,7 @@ buffer_read_path(struct Buffer *buffer, String path)
 		{
 			panel_line_indent_right(&panel, panel.pos.y);
 		} break;
+		case '\r': break;
 		case '\n':
 		{
 			panel_line_add_below(&panel);
@@ -1666,9 +1670,6 @@ buffer_read_path(struct Buffer *buffer, String path)
 			panel_insert_char(&panel, *at);
 		} break;
 		}
-
-
-		at += 1;
 	}
 
 	mem_free(file_data);
@@ -1681,7 +1682,7 @@ panel_input(struct Panel *panel)
 	if(key_alt_down())
 	{
 		struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
-		String path_read = STR("./test_write.txt");
+		String path_read = STR("./test_read.txt");
 		String path_write = STR("./test_write.txt");
 
 		if(0) {}
