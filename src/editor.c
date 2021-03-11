@@ -214,13 +214,57 @@ content_char_draw(struct Content *content, u32 char_index, v4 color)
 }
 
 void
-panel_line_content_draw(struct Panel *panel, struct Line *line, struct Content *content)
+panel_line_content_background_draw(struct Panel *panel, struct Line *line, struct Content *content)
+{
+	f32 y = HEIGHT - (editor->font.height * (line->id + 1));
+	f32 tab = editor->tab_size * editor->space_size * line->indent;
+	f32 padding = editor->line_number_width + editor->margin_left + tab;
+
+	v4 color = V4_ZERO;
+	if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
+	else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
+	else color = V4_COLOR_RED; /* SPLIT */
+
+	if(line->id % 2 == 0)
+	{
+	    if(content->id % 2 == 0) color = v4_mf(color, 0.5);
+	    else color = v4_mf(color, 0.3);
+	}
+	else
+	{
+	    if(content->id % 2 == 0) color = v4_mf(color, 0.3);
+	    else color = v4_mf(color, 0.5);
+	}
+
+	/* TODO: Put this in shift update */
+	struct Visual *visual = content->visual;
+	v2 start = V2(visual[0].rec.start.x+padding, y);
+	v2 end = V2_ZERO;
+
+	if(line->content_count > 1 && content->id < line->content_count - 1)
+	{
+		struct Content *content_next = &line->contents[content->id+1];
+		struct Visual *visual_next = content_next->visual;
+		end = V2(visual_next[0].rec.start.x+padding, y+editor->font.height);
+	}
+	else
+	{
+		end = V2(visual[content->char_count-1].rec.end.x+padding,
+			    y+editor->font.height);
+	}
+
+	struct Rec2 content_rec = REC2(start, end);
+
+	rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
+}
+
+void
+panel_line_content_text_draw(struct Panel *panel, struct Line *line, struct Content *content)
 {
 	/* TEMPORARY: We need to find the exact char_width */
 	/* HERE */
 	f32 tab = editor->tab_size * editor->space_size * line->indent;
 	f32 padding = editor->line_number_width + editor->margin_left + tab;
-	//f32 padding = editor->line_number_width + editor->margin_left;
 
 	mat4 mat_view = editor->camera.transform;
 	v4 color = V4_COLOR_WHITE;
@@ -238,8 +282,8 @@ panel_line_content_draw(struct Panel *panel, struct Line *line, struct Content *
 		struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 		gl_texture_bind(&texture, GL_TEXTURE_2D);
 
-		v2 min = v2_a(visual->rec.start, V2(editor->margin_left+padding, 0));
-		v2 max = v2_a(visual->rec.end, V2(editor->margin_left+padding, 0));
+		v2 min = v2_a(visual->rec.start, V2(padding, 0));
+		v2 max = v2_a(visual->rec.end, V2(padding, 0));
 
 		struct Rec2 rec = REC2(min, max);
 		struct Box2 box = box2_from_rec2(rec);
@@ -506,56 +550,13 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
 		struct Content *content = &line->contents[i];
+		if(content->char_count == 0) continue;
 
 		if(editor->draw_content_background)
 		{
-
-			f32 y = HEIGHT - (editor->font.height * (line->id + 1));
-			f32 tab = editor->tab_size * editor->space_size * line->indent;
-			f32 padding = editor->line_number_width + editor->margin_left + tab;
-			if(content->char_count != 0)
-			{
-				v4 color = V4_ZERO;
-				if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
-				else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
-				else color = V4_COLOR_RED; /* SPLIT */
-
-				if(line->id % 2 == 0)
-				{
-				    if(i % 2 == 0) color = v4_mf(color, 0.5);
-				    else color = v4_mf(color, 0.3);
-				}
-				else
-				{
-				    if(i % 2 == 0) color = v4_mf(color, 0.3);
-				    else color = v4_mf(color, 0.5);
-				}
-
-				/* TODO: Put this in shift update */
-				struct Visual *visual = content->visual;
-				v2 start = V2(visual[0].rec.start.x+padding, y);
-				v2 end = V2_ZERO;
-
-				if(line->content_count > 1 && i < line->content_count - 1)
-				{
-					struct Content *content_next = &line->contents[i+1];
-					struct Visual *visual_next = content_next->visual;
-					end = V2(visual_next[0].rec.start.x+padding, y+editor->font.height);
-				}
-				else
-				{
-					end = V2(visual[content->char_count-1].rec.end.x+padding,
-						 y+editor->font.height);
-				}
-
-				struct Rec2 content_rec = REC2(start, end);
-
-				rec2_draw(&content_rec, editor->camera.transform,
-					canvas->z[layer_content_background], color);
-			}
+			panel_line_content_background_draw(panel, line, content);
 		}
-
-		panel_line_content_draw(panel, line, content);
+		panel_line_content_text_draw(panel, line, content);
 	}
 }
 
@@ -840,7 +841,171 @@ panel_cursor_draw(struct Panel *panel)
 }
 
 void
-panel_line_input(struct Panel *panel, char c)
+position_update_prev_char(struct Position *pos, struct PositionPointer *ptr)
+{
+	bool had_to_change_content = true;
+
+	if(pos->x == 0)
+	{
+		/* Find a previous line with content */
+		loop
+		{
+			/* Buffer has no content */
+			if(ptr->line->id == 0)
+			{
+				ptr->content = EOL_PTR;
+				ptr->c = EOL_PTR;
+				return;
+			}
+
+			pos->y -= 1;
+			ptr->line = buffer_line_get_by_id(ptr->buffer, pos->y);
+
+			/* We found a good line */
+			if(ptr->line->char_count) {ptr->content = line_content_get_last(ptr->line); break;}
+		}
+	}
+	else if(pos->c == EOF) ptr->content = line_content_get_last(ptr->line);
+	else if(pos->i == 0) ptr->content = line_content_get_by_id(ptr->line, ptr->content->id-1);
+	else had_to_change_content = false;
+
+	if(had_to_change_content)
+	{
+		ASSERT(ptr->content->char_count > 0);
+		pos->x = content_char_end(ptr->content)-1;
+		pos->c = ptr->content->id;
+		pos->i = ptr->content->char_count-1;
+
+		ptr->c = &ptr->content->data[pos->i];
+	}
+	else
+	{
+		pos->x -= 1;
+		pos->i -= 1;
+
+		ptr->c = &ptr->content->data[pos->i];
+	}
+
+	if(editor->print_movement_info)
+	{
+		printf("CHAR PREV\n");
+		position_print(pos);
+		printf("\n");
+	}
+}
+
+void
+position_update_next_char(struct Position *pos, struct PositionPointer *ptr)
+{
+	bool had_to_change_content = true;
+
+	if(pos->x+1 >= ptr->line->char_count)
+	{
+		/* Find a next line with content */
+		loop
+		{
+			/* Buffer has no more contents */
+			if(ptr->line->id == ptr->buffer->line_count-1)
+			{
+				pos->x += 1;
+				pos->c = EOL;
+				pos->i = EOL;
+
+				ptr->content = EOL_PTR;
+				ptr->c = EOL_PTR;
+				return;
+			}
+
+			pos->y += 1;
+			ptr->line = buffer_line_get_by_id(ptr->buffer, pos->y);
+
+			/* We found a good line */
+			if(ptr->line->char_count)
+			{
+				ptr->content = line_content_get_first(ptr->line);
+				break;
+			}
+		}
+	}
+	else if(pos->i == ptr->content->char_count-1)
+	{
+		ptr->content = line_content_get_by_id(ptr->line, ptr->content->id+1);
+	}
+	else had_to_change_content = false;
+
+	if(had_to_change_content)
+	{
+		pos->x = ptr->content->char_start;
+		pos->c = ptr->content->id;
+		pos->i = 0;
+
+		ptr->c = &ptr->content->data[pos->i];
+	}
+	else
+	{
+		pos->x += 1;
+		pos->i += 1;
+		ptr->c = &ptr->content->data[pos->i];
+	}
+
+	if(editor->print_movement_info)
+	{
+		printf("CHAR NEXT\n");
+		position_print(pos);
+		printf("\n");
+	}
+}
+
+void
+content_data_shift_left(struct Position *pos, u32 n)
+{
+	ASSERT(n == 1);
+
+	struct PositionPointer pointer = position_pointer_from_position(pos);
+
+	u32 end_id = pointer.content->char_count-1;
+	u32 start_id = pos->i;
+	for(u32 i = start_id; i < end_id; ++i)
+	{
+		u32 id_from = i+1;
+		u32 id_to = i;
+		pointer.content->data[id_to] = pointer.content->data[id_from];
+	}
+}
+
+void
+panel_remove_char(struct Panel *panel)
+{
+	if(panel->pos.i == 0) return;
+
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+
+	if(panel->pos.i == 0)
+	{
+		printf("Index 0\n");
+		return;
+	}
+
+	if(panel->pos.i == EOL)
+	{
+		ptr.content = line_content_get_last(ptr.line);
+	}
+	else
+	{
+		panel->pos.i -= 1;
+
+		content_data_shift_left(&panel->pos, 1);
+		line_content_shift_update(&panel->pos);
+	}
+
+	panel->pos.x -= 1;
+
+	ptr.content->char_count -= 1;
+	ptr.line->char_count -= 1;
+}
+
+void
+panel_insert_char(struct Panel *panel, char c)
 {
 	/* NOTE: This function uses a goto to make it easier to read */
 
@@ -1050,7 +1215,7 @@ editor_init(void)
 
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
 	gl_viewport_color_set(editor->color_background);
-	#if 0
+	#if 1
 	editor->content_min = 128;
 	editor->content_max = 128;
 	#else
@@ -1076,122 +1241,6 @@ editor_init(void)
 	editor->window_count = 1;
 	editor->windows = mem_alloc(editor->window_count * sizeof(*editor->windows), true);
 	editor->windows[0] = window_new(&editor->buffers[0]);
-}
-
-void
-position_update_prev_char(struct Position *pos, struct PositionPointer *ptr)
-{
-	bool had_to_change_content = true;
-
-	if(pos->x == 0)
-	{
-		/* Find a previous line with content */
-		loop
-		{
-			/* Buffer has no content */
-			if(ptr->line->id == 0)
-			{
-				ptr->content = EOL_PTR;
-				ptr->c = EOL_PTR;
-				return;
-			}
-
-			pos->y -= 1;
-			ptr->line = buffer_line_get_by_id(ptr->buffer, pos->y);
-
-			/* We found a good line */
-			if(ptr->line->char_count) {ptr->content = line_content_get_last(ptr->line); break;}
-		}
-	}
-	else if(pos->c == EOF) ptr->content = line_content_get_last(ptr->line);
-	else if(pos->i == 0) ptr->content = line_content_get_by_id(ptr->line, ptr->content->id-1);
-	else had_to_change_content = false;
-
-	if(had_to_change_content)
-	{
-		ASSERT(ptr->content->char_count > 0);
-		pos->x = content_char_end(ptr->content)-1;
-		pos->c = ptr->content->id;
-		pos->i = ptr->content->char_count-1;
-
-		ptr->c = &ptr->content->data[pos->i];
-	}
-	else
-	{
-		pos->x -= 1;
-		pos->i -= 1;
-
-		ptr->c = &ptr->content->data[pos->i];
-	}
-
-	if(editor->print_movement_info)
-	{
-		printf("CHAR PREV\n");
-		position_print(pos);
-		printf("\n");
-	}
-}
-
-void
-position_update_next_char(struct Position *pos, struct PositionPointer *ptr)
-{
-	bool had_to_change_content = true;
-
-	if(pos->x+1 >= ptr->line->char_count)
-	{
-		/* Find a next line with content */
-		loop
-		{
-			/* Buffer has no more contents */
-			if(ptr->line->id == ptr->buffer->line_count-1)
-			{
-				pos->x += 1;
-				pos->c = EOL;
-				pos->i = EOL;
-
-				ptr->content = EOL_PTR;
-				ptr->c = EOL_PTR;
-				return;
-			}
-
-			pos->y += 1;
-			ptr->line = buffer_line_get_by_id(ptr->buffer, pos->y);
-
-			/* We found a good line */
-			if(ptr->line->char_count)
-			{
-				ptr->content = line_content_get_first(ptr->line);
-				break;
-			}
-		}
-	}
-	else if(pos->i == ptr->content->char_count-1)
-	{
-		ptr->content = line_content_get_by_id(ptr->line, ptr->content->id+1);
-	}
-	else had_to_change_content = false;
-
-	if(had_to_change_content)
-	{
-		pos->x = ptr->content->char_start;
-		pos->c = ptr->content->id;
-		pos->i = 0;
-
-		ptr->c = &ptr->content->data[pos->i];
-	}
-	else
-	{
-		pos->x += 1;
-		pos->i += 1;
-		ptr->c = &ptr->content->data[pos->i];
-	}
-
-	if(editor->print_movement_info)
-	{
-		printf("CHAR NEXT\n");
-		position_print(pos);
-		printf("\n");
-	}
 }
 
 void
@@ -1530,7 +1579,7 @@ buffer_read_path(struct Buffer *buffer, String path)
 		} break;
 		default:
 		{
-			panel_line_input(&panel, *at);
+			panel_insert_char(&panel, *at);
 		} break;
 		}
 
@@ -1548,7 +1597,7 @@ panel_input(struct Panel *panel)
 	if(key_alt_down())
 	{
 		struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
-		String path_read = STR("./test_read.txt");
+		String path_read = STR("./test_write.txt");
 		String path_write = STR("./test_write.txt");
 		if(key_down(key_w))
 		{
@@ -1633,14 +1682,16 @@ panel_input(struct Panel *panel)
 		{
 			if(key_press(key) == false) continue;
 
-			if(0) {}
-			else if(key == key_tab);
-			else if(key == key_enter) panel_line_add_below(panel);
-			else
+			switch(key)
+			{
+			case key_enter: panel_line_add_below(panel); break;
+			case key_backspace: panel_remove_char(panel); break;
+			default:
 			{
 				/* Enter characters */
 				char c = ascii_from_key(key);
-				if(c != '\0') panel_line_input(panel, c);
+				if(c != '\0') panel_insert_char(panel, c);
+			}
 			}
 		}
 	} break;

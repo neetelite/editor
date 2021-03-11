@@ -1,2 +1,5 @@
+character Visual becomes weird after we do line_content_shift_update(&panel->pos); ... bigger and blurier font
+Implement last line empty if you want exclusive ranges
+After reading a file the cursor is somewhere it shouldn't be
 Visual-logical missmatch with the new indentation system
 test_write.txt has a few garbage at the end, I think the problem is in the buffer_read_path() funciton
