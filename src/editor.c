@@ -219,28 +219,13 @@ content_char_draw(struct Content *content, u32 char_index, v4 color)
 }
 
 void
-panel_content_background_draw(struct Panel *panel, struct Content *content,
-			      v2 offset, v4 color)
-{
-	struct Rec2 content_rec = {0};
-	content_rec.start = v2_a(content->rec.start, offset);
-	content_rec.end = v2_a(content->rec.end, offset);
-
-	#if 0
-	if(rec2_overlap(&content_rec, &panel->screen.rec))
-	{
-		rec2_draw(&content_rec, editor->camera.transform,
-			  canvas->z[layer_content_background], color);
-	}
-	#else
-	rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
-	#endif
-}
-
-void
 panel_content_text_draw(struct Panel *panel, struct Content *content, v2 offset)
 {
 	offset = v2_a(offset, content->rec.start);
+
+	struct Rec2 content_rec = {0};
+	content_rec.start = v2_a(content->rec.start, offset);
+	content_rec.end = v2_a(content->rec.end, offset);
 
 	mat4 mat_view = editor->camera.transform;
 	v4 color = V4_COLOR_WHITE;
@@ -254,10 +239,6 @@ panel_content_text_draw(struct Panel *panel, struct Content *content, v2 offset)
 	{
 		struct Visual *visual = &content->visual[i];
 		u32 codepoint = content->data[i];
-
-		#if 0
-		if(rec2_overlap(&panel->screen.rec, &visual->rec) == false) continue;
-		#endif
 
 		struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 		gl_texture_bind(&texture, GL_TEXTURE_2D);
@@ -544,6 +525,11 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 		struct Content *content = &line->contents[i];
 		if(content->char_count == 0) continue;
 
+		struct Rec2 content_rec = {0};
+		content_rec.start = v2_a(content->rec.start, offset);
+		content_rec.end = v2_a(content->rec.end, offset);
+		if(rec2_overlap(&content_rec, &panel->screen.rec) == false) continue;
+
 		/* Background */
 		if(editor->draw_content_background)
 		{
@@ -563,7 +549,7 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 			    else color = v4_mf(color, 0.5);
 			}
 
-			panel_content_background_draw(panel, content, offset, color);
+			rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
 		}
 
 		/* Text */
@@ -822,7 +808,7 @@ void
 screen_update_rec(struct Screen *screen)
 {
 	//screen->rec = REC2(screen->pos, screen->dim);
-	//screen->rec = rec2_sort(screen->rec);
+	screen->rec = rec2_sort(screen->rec);
 }
 
 struct Screen
@@ -831,7 +817,14 @@ screen_new()
 	struct Screen result = {0};
 	result.pos = V2_ZERO;
 	result.dim = SCREEN_DIM;
-	screen_update_rec(&result);
+
+	#if 0
+	result.rec = REC2(V2(0, HEIGHT/4), V2(WIDTH, HEIGHT-(HEIGHT/4)));
+	#else
+	result.rec = REC2(result.pos, result.dim);
+	#endif
+	result.rec = rec2_sort(result.rec);
+
 	return(result);
 }
 
@@ -839,7 +832,9 @@ void
 panel_screen_move_up(struct Panel *panel)
 {
 	panel->screen.pos.y -= editor->font.height;
-	if(panel->screen.pos.y < 0) panel->screen.pos.y = 0;
+
+	f32 stop_at = -HEIGHT + editor->font.height;
+	if(panel->screen.pos.y < stop_at) panel->screen.pos.y = stop_at;
 
 	screen_update_rec(&panel->screen);
 }
@@ -848,6 +843,12 @@ void
 panel_screen_move_down(struct Panel *panel)
 {
 	panel->screen.pos.y += editor->font.height;
+
+	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
+
+	f32 stop_at = (buffer->line_count-1) * editor->font.height;
+	if(panel->screen.pos.y > stop_at) panel->screen.pos.y = stop_at;
+
 	screen_update_rec(&panel->screen);
 }
 
