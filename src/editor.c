@@ -837,6 +837,13 @@ panel_screen_move_up(struct Panel *panel)
 	if(panel->screen.pos.y < stop_at) panel->screen.pos.y = stop_at;
 
 	screen_update_rec(&panel->screen);
+
+	if(editor->print_movement_info)
+	{
+		printf("PANEL UP\n");
+		printf("Y: %f\n", panel->screen.pos.y);
+		printf("\n");
+	}
 }
 
 void
@@ -850,6 +857,13 @@ panel_screen_move_down(struct Panel *panel)
 	if(panel->screen.pos.y > stop_at) panel->screen.pos.y = stop_at;
 
 	screen_update_rec(&panel->screen);
+
+	if(editor->print_movement_info)
+	{
+		printf("PANEL DOWN\n");
+		printf("Y: %f\n", panel->screen.pos.y);
+		printf("\n");
+	}
 }
 
 /* TODO: Change this to panel */
@@ -1146,7 +1160,7 @@ void
 panel_screen_background_draw(struct Panel *panel)
 {
 	struct Screen *screen = &panel->screen;
-	v4 color = v4_mf(V4_COLOR_WHITE, 0.1);
+	v4 color = v4_mf(V4_COLOR_WHITE, 0.05);
 	rec2_draw(&screen->rec, gl->projection_2d, canvas->z[layer_screen_background], color);
 }
 
@@ -1154,9 +1168,15 @@ void
 panel_buffer_draw(struct Panel *panel)
 {
 	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
-
 	panel_screen_background_draw(panel);
-	for(u32 i = 0; i < buffer->line_count; ++i)
+
+	i32 line_start = (panel->screen.pos.y / editor->font.height) - 1;
+	i32 line_end = ((panel->screen.pos.y + HEIGHT) / editor->font.height);
+
+	if(line_start < 0) line_start = 0;
+	if(line_end > buffer->line_count) line_end = buffer->line_count;
+
+	for(u32 i = line_start; i < line_end; ++i)
 	{
 		struct Line *line = &buffer->lines[i];
 		panel_line_draw(panel, line);
@@ -1285,22 +1305,22 @@ editor_init(void)
 	editor = &app->editor;
 
 	/* Settings */
-	font_init(&editor->font, "ibm.ttf", "IBM Plex Mono", 24, "ascii");
+	font_init(&editor->font, "ibm.ttf", "IBM Plex Mono", 20, "ascii");
 	//font_init(&editor->font, "arial.ttf", "Arial", 24, "ascii");
 	//font_init(&editor->font, "roboto.ttf", "Arial", 24, "ascii");
 
 	editor->align_bar    = ALIGN("left", "bottom");
 	editor->align_buffer = ALIGN("left", "top");
 
-	editor->line_number_width = 30.0;
+	editor->line_number_width = 50.0;
 	editor->margin_left = 5.0;
 
 	editor->space_size = 10.0;
 	editor->tab_size = 8;
 
-	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.05);
+	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.8);
 	gl_viewport_color_set(editor->color_background);
-	#if 0
+	#if 1
 	editor->content_min = 128;
 	editor->content_max = 128;
 	#else
