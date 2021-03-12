@@ -616,6 +616,54 @@ panel_cursor_move_to_line(struct Panel *panel, struct Line *line)
 }
 
 void
+screen_update_rec(struct Screen *screen)
+{
+	//screen->rec = REC2(screen->pos, screen->dim);
+	screen->rec = rec2_sort(screen->rec);
+}
+
+void
+panel_screen_update_up(struct Panel *panel)
+{
+	f32 lines_of_spacing = 5;
+	f32 cursor_pos = (panel->pos.y * editor->font.height);
+	f32 stop_at = (panel->screen.pos.y) + (lines_of_spacing * editor->font.height);
+	f32 first_line = (lines_of_spacing+1) * editor->font.height;
+
+	if(stop_at < first_line) return;
+	if(cursor_pos > stop_at) return;
+
+	panel->screen.pos.y = cursor_pos - (lines_of_spacing * editor->font.height);
+	screen_update_rec(&panel->screen);
+
+
+}
+
+void
+panel_screen_update_down(struct Panel *panel)
+{
+	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
+
+	f32 lines_of_spacing = 5;
+	f32 cursor_pos = panel->pos.y * editor->font.height;
+	f32 stop_at = (panel->screen.pos.y + HEIGHT) - (lines_of_spacing * editor->font.height);
+	f32 last_line = ((buffer->line_count+1) * editor->font.height) - panel->screen.pos.y;
+
+	if(stop_at > last_line) return;
+	if(cursor_pos < stop_at) return;
+
+	panel->screen.pos.y = (cursor_pos - HEIGHT) + (lines_of_spacing * editor->font.height);
+	screen_update_rec(&panel->screen);
+}
+
+void
+panel_screen_update(struct Panel *panel)
+{
+	panel_screen_update_up(panel);
+	panel_screen_update_down(panel);
+}
+
+void
 panel_cursor_move_up(struct Panel *panel)
 {
 	if(panel->pos.y <= 0) return;
@@ -624,6 +672,7 @@ panel_cursor_move_up(struct Panel *panel)
 
 	struct Line *line_above = buffer_line_get_by_id(pointer.buffer, panel->pos.y-1);
 	panel_cursor_move_to_line(panel, line_above);
+	panel_screen_update_up(panel);
 
 	if(editor->print_movement_info)
 	{
@@ -633,6 +682,7 @@ panel_cursor_move_up(struct Panel *panel)
 	}
 }
 
+
 void
 panel_cursor_move_down(struct Panel *panel)
 {
@@ -641,6 +691,7 @@ panel_cursor_move_down(struct Panel *panel)
 
 	struct Line *line_below = buffer_line_get_by_id(pointer.buffer, panel->pos.y+1);
 	panel_cursor_move_to_line(panel, line_below);
+	panel_screen_update_down(panel);
 
 	if(editor->print_movement_info)
 	{
@@ -787,6 +838,7 @@ panel_cursor_move_prev_empty_line(struct Panel *panel)
 			break;
 		}
 	}
+	panel_screen_update_up(panel);
 }
 
 void
@@ -802,13 +854,8 @@ panel_cursor_move_next_empty_line(struct Panel *panel)
 			break;
 		}
 	}
-}
 
-void
-screen_update_rec(struct Screen *screen)
-{
-	//screen->rec = REC2(screen->pos, screen->dim);
-	screen->rec = rec2_sort(screen->rec);
+	panel_screen_update_down(panel);
 }
 
 struct Screen
@@ -1412,6 +1459,8 @@ panel_cursor_move_word_prev(struct Panel *panel, bool stop_at_token)
 		pos_prev = pos_curr;
 		pointer_prev = pointer_curr;
 	}
+
+	panel_screen_update_up(panel);
 }
 
 void
@@ -1466,6 +1515,7 @@ panel_cursor_move_word_next(struct Panel *panel, bool stop_at_token)
 		pointer_prev = pointer_curr;
 	}
 
+	panel_screen_update_down(panel);
 }
 
 void
@@ -1533,6 +1583,7 @@ panel_line_add_above(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
 	panel_line_add(panel);
+	panel_screen_update_up(panel);
 }
 
 void
@@ -1542,6 +1593,7 @@ panel_line_add_below(struct Panel *panel)
 
 	panel->pos.y += 1;
 	panel_line_add(panel);
+	panel_screen_update_down(panel);
 }
 
 void

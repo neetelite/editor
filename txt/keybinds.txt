@@ -52,12 +52,13 @@ N	move to prev highlight
 v 	paste
 c 	copy
 x	delete
-z 	cut
 
 V 	paste on newline
 C 	copy line
 X	delete line
-Z	cut line
+
+z
+Z
 
 b    	substitute with string
 B    	substitute with char
@@ -142,3 +143,6 @@ A^l	window right
 C^c	reverse character casing
 C^e	evaluate expression
 C^i	increment number
+
+/* Unused */
+qQ tT yY pP sS zZ !@#$%^&*()
