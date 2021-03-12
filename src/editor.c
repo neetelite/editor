@@ -1107,15 +1107,16 @@ content_data_shift_left(struct Position *pos, u32 n)
 {
 	ASSERT(n == 1);
 
-	struct PositionPointer pointer = position_pointer_from_position(pos);
+	struct PositionPointer ptr = position_pointer_from_position(pos);
+	if((i32)ptr.content->char_count-1 - pos->i <= n) return;
 
-	u32 end_id = pointer.content->char_count-1;
+	u32 end_id = ptr.content->char_count-1;
 	u32 start_id = pos->i;
 	for(u32 i = start_id; i < end_id; ++i)
 	{
 		u32 id_from = i+1;
 		u32 id_to = i;
-		pointer.content->data[id_to] = pointer.content->data[id_from];
+		ptr.content->data[id_to] = ptr.content->data[id_from];
 	}
 }
 
@@ -1125,9 +1126,24 @@ panel_remove_char(struct Panel *panel)
 	if(panel->pos.i == EOL) return;
 
 	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	if(ptr.content->char_count == 0) return;
 
 	content_data_shift_left(&panel->pos, 1);
 	line_content_shift_update(&panel->pos);
+
+	if(panel->pos.i == ptr.content->char_count-1)
+	{
+		if(ptr.content->id == ptr.line->content_count-1)
+		{
+			panel->pos.c = EOF;
+			panel->pos.i = EOF;
+		}
+		else
+		{
+			panel->pos.c += 1;
+			panel->pos.i = 0;
+		}
+	}
 
 	ptr.content->char_count -= 1;
 	ptr.line->char_count -= 1;
