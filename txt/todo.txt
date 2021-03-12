@@ -1,3 +1,4 @@
+For now you're force to have at least one line per buffer, may change later?
 Only update or draw content when needed
 Any more that is not up or down should reset x_min
 Make it so creating a new buffer doesn't also create a new line

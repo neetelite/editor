@@ -650,8 +650,6 @@ panel_screen_update_up(struct Panel *panel)
 
 	panel->screen.pos.y = new_screen_y;
 	screen_update_rec(&panel->screen);
-
-
 }
 
 void
@@ -692,8 +690,12 @@ panel_cursor_move_to_line_by_id(struct Panel *panel, u32 id)
 	u32 y_tmp = panel->pos.y;
 	panel_cursor_move_to_line(panel, line);
 
+	#if 1
 	if(id < y_tmp) panel_screen_update_up(panel);
 	else panel_screen_update_down(panel);
+	#else
+	panel_screen_update(panel);
+	#endif
 }
 
 void
@@ -701,9 +703,9 @@ panel_cursor_move_up(struct Panel *panel)
 {
 	if(panel->pos.y <= 0) return;
 
-	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
 
-	struct Line *line_above = buffer_line_get_by_id(pointer.buffer, panel->pos.y-1);
+	struct Line *line_above = buffer_line_get_by_id(ptr.buffer, panel->pos.y-1);
 	panel_cursor_move_to_line(panel, line_above);
 	panel_screen_update_up(panel);
 
@@ -719,10 +721,10 @@ panel_cursor_move_up(struct Panel *panel)
 void
 panel_cursor_move_down(struct Panel *panel)
 {
-	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
-	if(panel->pos.y >= pointer.buffer->line_count-1) return;
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	if(panel->pos.y >= ptr.buffer->line_count-1) return;
 
-	struct Line *line_below = buffer_line_get_by_id(pointer.buffer, panel->pos.y+1);
+	struct Line *line_below = buffer_line_get_by_id(ptr.buffer, panel->pos.y+1);
 	panel_cursor_move_to_line(panel, line_below);
 	panel_screen_update_down(panel);
 
@@ -979,8 +981,6 @@ panel_screen_move_down(struct Panel *panel)
 		printf("\n");
 	}
 }
-
-/* TODO: Change this to panel */
 
 /* TODO: Change this to panel */
 void
@@ -1452,12 +1452,12 @@ editor_init(void)
 
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.8);
 	gl_viewport_color_set(editor->color_background);
-	#if 1
+	#if 0
 	editor->content_min = 128;
 	editor->content_max = 128;
 	#else
-	editor->content_min = 8;
-	editor->content_max = 8;
+	editor->content_min = 64;
+	editor->content_max = 64;
 	#endif
 
 	/* Camera */
@@ -1650,9 +1650,13 @@ buffer_line_shift_update(struct Position *pos)
 void
 buffer_line_shift_up(struct Position *pos, u32 n)
 {
+	if(n <= 0) return;
+
 	struct PositionPointer ptr = position_pointer_from_position(pos);
+	if(pos->y+n >= ptr.buffer->line_count) return;
+
 	//for(u32 i = pointer.buffer->line_count+n-1; i > pos->y; --i)
-	for(u32 i = pos->y; i < ptr.buffer->line_count-1-n; ++i)
+	for(u32 i = pos->y; i < ptr.buffer->line_count-n; ++i)
 	{
 		u32 id_from = i+n;
 		u32 id_to = i;
@@ -1899,13 +1903,31 @@ panel_line_remove(struct Panel *panel, u32 line_id)
 {
 	/* NOTE: This function doesn't free the line */
 	struct Position pos = panel->pos;
+	struct Buffer *buffer = editor_buffer_get_by_id(pos.b);
+	if(buffer->line_count == 1) return;
+
 	pos.y = line_id;
 
 	buffer_line_shift_up(&pos, 1);
 	buffer_line_shift_update(&pos);
 
-	struct Buffer *buffer = editor_buffer_get_by_id(pos.b);
+	if(panel->pos.y == buffer->line_count-1) panel_cursor_move_up(panel);
 	buffer->line_count -= 1;
+}
+
+void
+panel_line_delete(struct Panel *panel, u32 line_id)
+{
+	struct Position pos = panel->pos;
+	pos.y = line_id;
+
+	struct Buffer *buffer = editor_buffer_get_by_id(pos.b);
+	if(buffer->line_count == 1) return;
+
+	struct Line *line = buffer_line_get_by_id(buffer, pos.y);
+	if(line->content_max) mem_free(line->contents);
+
+	panel_line_remove(panel, line_id);
 }
 
 void
@@ -1914,7 +1936,22 @@ panel_line_join_above(struct Panel *panel)
 	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
 	if(panel->pos.y <= 0) return;
 
+	if(ptr.line->content_count == 0)
+	{
+		panel_line_delete(panel, ptr.line->id);
+		panel_cursor_move_up(panel);
+		panel_screen_update(panel);
+		return;
+	}
+
 	struct Line *line_above = buffer_line_get_by_id(ptr.buffer, ptr.line->id-1);
+	if(line_above->content_count == 0)
+	{
+		panel_line_delete(panel, line_above->id);
+		panel_cursor_move_up(panel);
+		panel_screen_update(panel);
+		return;
+	}
 
 	u64 new_content_count = ptr.line->content_count + line_above->content_count;
 	while(ptr.line->content_max < new_content_count)
@@ -1931,8 +1968,10 @@ panel_line_join_above(struct Panel *panel)
 	ptr.line->content_count = new_content_count;
 
 	line_content_shift_update(&panel->pos);
+
 	panel_line_remove(panel, line_above->id);
 	panel_cursor_move_up(panel);
+	panel_screen_update(panel);
 }
 
 void
@@ -1941,7 +1980,20 @@ panel_line_join_below(struct Panel *panel)
 	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
 	if(panel->pos.y >= ptr.buffer->line_count-1) return;
 
+	if(ptr.line->content_count == 0)
+	{
+		panel_line_delete(panel, ptr.line->id);
+		panel_screen_update(panel);
+		return;
+	}
+
 	struct Line *line_below = buffer_line_get_by_id(ptr.buffer, ptr.line->id+1);
+	if(line_below->content_count == 0)
+	{
+		panel_line_delete(panel, line_below->id);
+		panel_screen_update(panel);
+		return;
+	}
 
 	u64 new_content_count = ptr.line->content_count + line_below->content_count;
 	while(ptr.line->content_max < new_content_count)
@@ -1958,7 +2010,9 @@ panel_line_join_below(struct Panel *panel)
 	ptr.line->content_count = new_content_count;
 
 	line_content_shift_update(&panel->pos);
+
 	panel_line_remove(panel, line_below->id);
+	panel_screen_update(panel);
 }
 
 void
@@ -2046,7 +2100,7 @@ panel_input(struct Panel *panel)
 				case key_p: panel_line_join_above(panel); break;
 
 				/* Bottom Left */
-				case key_x: /* TODO: Remove line */ break;
+				case key_x: panel_line_delete(panel, panel->pos.y); break;
 
 				/* Bottom Right */
 				case key_comma: panel_cursor_move_first_line(panel); break;
