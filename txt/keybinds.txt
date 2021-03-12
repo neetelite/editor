@@ -11,8 +11,8 @@ L	line end
 J	next empty line
 K	prev empty line
 
-;	next 0 intent empty line
-:	prev 0 intent empty line
+;
+:
 
 '	goto char
 "	goto line
@@ -32,8 +32,11 @@ a	mark current position
 A	goto mark
 
 /* BOTTOM RIGHT - MOVEMENT */
-,	line screen first
-.	line screen last
+,	next 0 intent empty line
+.	prev 0 intent empty line
+
+	line screen first
+	line screen last
 m	line screen middle
 
 <	line file first

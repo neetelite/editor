@@ -640,12 +640,13 @@ panel_screen_update_up(struct Panel *panel)
 	f32 lines_of_spacing = 5;
 	f32 cursor_pos = (panel->pos.y * editor->font.height);
 	f32 stop_at = (panel->screen.pos.y) + (lines_of_spacing * editor->font.height);
-	f32 first_line = (lines_of_spacing+1) * editor->font.height;
-
-	if(stop_at < first_line) return;
 	if(cursor_pos > stop_at) return;
 
-	panel->screen.pos.y = cursor_pos - (lines_of_spacing * editor->font.height);
+	f32 first_line = 0;
+	f32 new_screen_y = cursor_pos - (lines_of_spacing * editor->font.height);
+	if(new_screen_y < first_line) new_screen_y = first_line;
+
+	panel->screen.pos.y = new_screen_y;
 	screen_update_rec(&panel->screen);
 
 
@@ -659,12 +660,17 @@ panel_screen_update_down(struct Panel *panel)
 	f32 lines_of_spacing = 5;
 	f32 cursor_pos = panel->pos.y * editor->font.height;
 	f32 stop_at = (panel->screen.pos.y + HEIGHT) - (lines_of_spacing * editor->font.height);
-	f32 last_line = ((buffer->line_count+1) * editor->font.height) - panel->screen.pos.y;
-
-	if(stop_at > last_line) return;
 	if(cursor_pos < stop_at) return;
 
-	panel->screen.pos.y = (cursor_pos - HEIGHT) + (lines_of_spacing * editor->font.height);
+	f32 last_line = (buffer->line_count) * editor->font.height;
+	f32 new_screen_y = (cursor_pos - HEIGHT) + (lines_of_spacing * editor->font.height);
+	if(new_screen_y+HEIGHT > last_line) new_screen_y = last_line-HEIGHT;
+
+	printf("N: %f\n", new_screen_y+HEIGHT);
+	printf("L: %f\n", last_line);
+	printf("\n");
+
+	panel->screen.pos.y = new_screen_y;
 	screen_update_rec(&panel->screen);
 }
 
@@ -673,6 +679,23 @@ panel_screen_update(struct Panel *panel)
 {
 	panel_screen_update_up(panel);
 	panel_screen_update_down(panel);
+}
+
+void
+panel_cursor_move_to_line_by_id(struct Panel *panel, u32 id)
+{
+	if(id < 0) return;
+
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	if(id >= ptr.buffer->line_count) return;
+
+	struct Line *line = buffer_line_get_by_id(ptr.buffer, id);
+
+	u32 y_tmp = panel->pos.y;
+	panel_cursor_move_to_line(panel, line);
+
+	if(id < y_tmp) panel_screen_update_up(panel);
+	else panel_screen_update_down(panel);
 }
 
 void
@@ -837,7 +860,7 @@ panel_cursor_move_end(struct Panel *panel)
 }
 
 void
-panel_cursor_move_prev_empty_line(struct Panel *panel)
+panel_cursor_move_prev_empty_line(struct Panel *panel, bool check_indent_zero)
 {
 	/* TODO: */
 	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
@@ -846,15 +869,23 @@ panel_cursor_move_prev_empty_line(struct Panel *panel)
 		struct Line *line = buffer_line_get_by_id(ptr.buffer, line_id);
 		if(line->char_count == 0)
 		{
-			panel_cursor_move_to_line(panel, line);
-			break;
+			if(check_indent_zero == false)
+			{
+				panel_cursor_move_to_line(panel, line);
+				break;
+			}
+			else if(line->indent == 0)
+			{
+				panel_cursor_move_to_line(panel, line);
+				break;
+			}
 		}
 	}
 	panel_screen_update_up(panel);
 }
 
 void
-panel_cursor_move_next_empty_line(struct Panel *panel)
+panel_cursor_move_next_empty_line(struct Panel *panel, bool check_indent_zero)
 {
 	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
 	for(i32 line_id = ptr.line->id+1; line_id < ptr.buffer->line_count; ++line_id)
@@ -862,11 +893,37 @@ panel_cursor_move_next_empty_line(struct Panel *panel)
 		struct Line *line = buffer_line_get_by_id(ptr.buffer, line_id);
 		if(line->char_count == 0)
 		{
-			panel_cursor_move_to_line(panel, line);
-			break;
+			if(check_indent_zero == false)
+			{
+				panel_cursor_move_to_line(panel, line);
+				break;
+			}
+			else if(line->indent == 0)
+			{
+				panel_cursor_move_to_line(panel, line);
+				break;
+			}
 		}
 	}
 
+	panel_screen_update_down(panel);
+}
+
+void
+panel_cursor_move_first_line(struct Panel *panel)
+{
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	struct Line *line = buffer_line_get_by_id(ptr.buffer, 0);
+	panel_cursor_move_to_line(panel, line);
+	panel_screen_update_up(panel);
+}
+
+void
+panel_cursor_move_last_line(struct Panel *panel)
+{
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	struct Line *line = buffer_line_get_by_id(ptr.buffer, ptr.buffer->line_count-1);
+	panel_cursor_move_to_line(panel, line);
 	panel_screen_update_down(panel);
 }
 
@@ -1841,6 +1898,10 @@ panel_input(struct Panel *panel)
 
 				/* Bottom Left */
 				case key_x: panel_remove_char(panel);
+
+				/* Bottom Right */
+				case key_comma: panel_cursor_move_prev_empty_line(panel, true); break;
+				case key_period: panel_cursor_move_next_empty_line(panel, true); break;
 				};
 			}
 			else
@@ -1851,8 +1912,8 @@ panel_input(struct Panel *panel)
 				case key_h: panel_cursor_move_start(panel); break;
 				case key_l: panel_cursor_move_end(panel); break;
 
-				case key_j: panel_cursor_move_next_empty_line(panel); break;
-				case key_k: panel_cursor_move_prev_empty_line(panel); break;
+				case key_j: panel_cursor_move_next_empty_line(panel, false); break;
+				case key_k: panel_cursor_move_prev_empty_line(panel, false); break;
 
 				case key_f: panel_cursor_move_word_next(panel, false); break;
 				case key_d: panel_cursor_move_word_prev(panel, false); break;
@@ -1864,6 +1925,10 @@ panel_input(struct Panel *panel)
 				/* Top Right */
 				case key_i: panel_line_indent_left(panel, panel->pos.y); break;
 				case key_o: panel_line_add_above(panel); break;
+
+				/* Bottom Right */
+				case key_comma: panel_cursor_move_first_line(panel); break;
+				case key_period: panel_cursor_move_last_line(panel); break;
 				}
 			}
 		}
