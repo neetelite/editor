@@ -1,3 +1,4 @@
+Backspace and content buffer
 character Visual becomes weird after we do line_content_shift_update(&panel->pos); ... bigger and blurier font
 Implement last line empty if you want exclusive ranges
 After reading a file the cursor is somewhere it shouldn't be

@@ -109,6 +109,12 @@ content_new(u32 id, u32 start, u32 count)
 void
 line_content_rec_update(struct Line *line, struct Content *content)
 {
+	if(content->char_count == 0)
+	{
+		content->rec = REC2(V2_ZERO, V2_ZERO);
+		return;
+	}
+
 	/* Rec */
 	if(content->id == 0)
 	{
@@ -1116,34 +1122,25 @@ content_data_shift_left(struct Position *pos, u32 n)
 void
 panel_remove_char(struct Panel *panel)
 {
-	if(panel->pos.i == 0) return;
+	if(panel->pos.i == EOL) return;
 
 	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
 
-	if(panel->pos.i == 0)
-	{
-		printf("Index 0\n");
-		return;
-	}
-
-	if(panel->pos.i == EOL)
-	{
-		ptr.content = line_content_get_last(ptr.line);
-	}
-	else
-	{
-		panel->pos.i -= 1;
-
-		content_data_shift_left(&panel->pos, 1);
-		line_content_shift_update(&panel->pos);
-	}
-
-	panel->pos.x -= 1;
+	content_data_shift_left(&panel->pos, 1);
+	line_content_shift_update(&panel->pos);
 
 	ptr.content->char_count -= 1;
 	ptr.line->char_count -= 1;
 
 	line_content_rec_update(ptr.line, ptr.content);
+}
+
+void
+panel_backspace(struct Panel *panel)
+{
+	if(panel->pos.x == 0) return;
+	panel_cursor_move_left(panel);
+	panel_remove_char(panel);
 }
 
 void
@@ -1155,14 +1152,23 @@ panel_insert_char(struct Panel *panel, char c)
 
 	if(panel->pos.c == EOL)
 	{
+		struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+
 		/* Add at the start */
-		if(panel->pos.x == 0) line_content_add_start(&panel->pos);
+		if(panel->pos.x == 0)
+		{
+			if(ptr.line->content_count == 0) line_content_add_start(&panel->pos);
+			else
+			{
+				panel->pos.c = 0;
+				panel->pos.i = 0;
+			}
+		}
 
 		/* Add at the end */
 		else
 		{
-			struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
-			struct Content *content_last = line_content_get_last(pointer.line);
+			struct Content *content_last = line_content_get_last(ptr.line);
 
 			/* Check weather or not we can use the last content instead of creating a new one */
 			u32 size_end = content_size_end(content_last);
@@ -1176,8 +1182,8 @@ panel_insert_char(struct Panel *panel, char c)
 		goto insert_character;
 	}
 
-	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
-	if(content_is_full(pointer.content))
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	if(content_is_full(ptr.content))
 	{
 		/* Add before the content */
 		if(panel->pos.i == 0)
@@ -1186,7 +1192,7 @@ panel_insert_char(struct Panel *panel, char c)
 			if(panel->pos.c != 0)
 			{
 				    struct Content *content_prev =
-					    line_content_get_previous(pointer.line, pointer.content);
+					    line_content_get_previous(ptr.line, ptr.content);
 
 				    u32 size_end = content_size_end(content_prev);
 				    if(panel->pos.x < size_end)
@@ -1816,6 +1822,9 @@ panel_input(struct Panel *panel)
 				/* Top Right */
 				case key_i: panel_line_indent_right(panel, panel->pos.y); break;
 				case key_o: panel_line_add_below(panel); break;
+
+				/* Bottom Left */
+				case key_x: panel_remove_char(panel);
 				};
 			}
 			else
@@ -1862,7 +1871,7 @@ panel_input(struct Panel *panel)
 			switch(key)
 			{
 			case key_enter: panel_line_add_below(panel); break;
-			case key_backspace: panel_remove_char(panel); break;
+			case key_backspace: panel_backspace(panel); break;
 			default:
 			{
 				/* Enter characters */
