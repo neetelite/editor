@@ -1684,8 +1684,8 @@ buffer_reset(struct Buffer *buffer)
 	*buffer = buffer_new();
 }
 
-void
-buffer_read_path(struct Buffer *buffer, String path)
+i32
+buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 {
 	/* Read from file */
 	File file = file_init(path);
@@ -1696,7 +1696,7 @@ buffer_read_path(struct Buffer *buffer, String path)
 	{
 		FATAL("This shouldn't be happening!\n");
 		file_close(&file);
-		return;
+		return(-1);
 	}
 
 	char *file_data = mem_alloc(filesize, false);
@@ -1715,7 +1715,6 @@ buffer_read_path(struct Buffer *buffer, String path)
 	*first_content = content_new(0, 0, 0);
 
 	struct Panel panel = panel_new(buffer);
-
 	for(u32 i = 0; i < filesize; ++i)
 	{
 		char *at = &file_data[i];
@@ -1746,6 +1745,18 @@ buffer_read_path(struct Buffer *buffer, String path)
 	}
 
 	mem_free(file_data);
+
+	panel.screen = screen_new();
+	panel.pos.x = 0;
+	panel.pos.y = 0;
+	panel.pos.c = 0;
+	panel.pos.i = 0;
+	panel.pos.x_min_active = false;
+	panel.pos.x_min = 0;
+
+	*panel_out = panel;
+
+	return(0);
 }
 
 void
@@ -1760,7 +1771,8 @@ panel_input(struct Panel *panel)
 
 		if(0) {}
 		else if(key_press(key_w)) buffer_write_path(buffer, path_write);
-		else if(key_press(key_r)) buffer_read_path(buffer, path_read);
+		else if(key_press(key_r)) buffer_read_path(buffer, path_read, panel);
+
 		else if(key_press(key_j)) panel_screen_move_down(panel);
 		else if(key_press(key_k)) panel_screen_move_up(panel);
 		return;
