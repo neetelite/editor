@@ -14,34 +14,35 @@ K	prev empty line
 ;
 :
 
-'	goto char
-"	goto line
+'
+"
 
-g	word end
+f	word forward
+
 f	word forward
 d	word back
 
-G	WORD end
 F	WORD forward
 D	WORD back
+
+g
+G
 
 s
 S
 
-a	mark current position
-A	goto mark
+a	goto mark
+A	mark current position
 
 /* BOTTOM RIGHT - MOVEMENT */
 ,	next 0 intent empty line
 .	prev 0 intent empty line
 
-	line screen first
-	line screen last
-m	line screen middle
-
 <	line file first
 >	line file last
-M	line file middle
+
+m
+M
 
 n	move to next highlight
 N	move to prev highlight
@@ -150,4 +151,13 @@ C^i	increment number
 C^/	comment
 
 /* Unused */
-qQ tT yY sS zZ !@#$%^&*()
+mM ;: '" "gG qQ tT yY sS zZ !@#$%^&*()
+
+	goto char
+	goto line
+
+	word end
+	WORD end
+
+	line screen first
+	line screen last

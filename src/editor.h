@@ -115,12 +115,19 @@ struct Screen
 	struct Rec2 rec;
 };
 
+struct Mark
+{
+	struct Position pos;
+};
+
 struct Panel
 {
+	enum EditMode edit_mode;
+
 	struct Position pos;
 	struct Screen screen;
 
-	enum EditMode edit_mode;
+	struct Mark mark;
 };
 
 struct Window

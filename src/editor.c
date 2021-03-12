@@ -342,6 +342,8 @@ line_content_shift_update(struct Position *pos)
 
 		/* Update char start */
 		struct Content *content = line_content_get_by_id(ptr.line, content_id);
+		content->id = content_id; /* NOTE: You need to do this, YES */
+
 		if(content->id == 0)
 		{
 			content->char_start = 0;
@@ -665,10 +667,6 @@ panel_screen_update_down(struct Panel *panel)
 	f32 last_line = (buffer->line_count) * editor->font.height;
 	f32 new_screen_y = (cursor_pos - HEIGHT) + (lines_of_spacing * editor->font.height);
 	if(new_screen_y+HEIGHT > last_line) new_screen_y = last_line-HEIGHT;
-
-	printf("N: %f\n", new_screen_y+HEIGHT);
-	printf("L: %f\n", last_line);
-	printf("\n");
 
 	panel->screen.pos.y = new_screen_y;
 	screen_update_rec(&panel->screen);
@@ -1636,6 +1634,33 @@ buffer_line_shift_down(struct Position *pos, u32 n)
 }
 
 void
+buffer_line_shift_update(struct Position *pos)
+{
+	struct PositionPointer ptr = position_pointer_from_position(pos);
+	struct Position line_pos = {0};
+	line_pos.b = pos->b;
+
+	for(i32 line_id = pos->y; line_id < ptr.buffer->line_count; line_id += 1)
+	{
+		struct Line *line = buffer_line_get_by_id(ptr.buffer, line_id);
+		line->id = line_id;
+	}
+}
+
+void
+buffer_line_shift_up(struct Position *pos, u32 n)
+{
+	struct PositionPointer ptr = position_pointer_from_position(pos);
+	//for(u32 i = pointer.buffer->line_count+n-1; i > pos->y; --i)
+	for(u32 i = pos->y; i < ptr.buffer->line_count-1-n; ++i)
+	{
+		u32 id_from = i+n;
+		u32 id_to = i;
+		ptr.buffer->lines[id_to] = ptr.buffer->lines[id_from];
+	}
+}
+
+void
 panel_line_add(struct Panel *panel)
 {
 	struct PositionPointer pointer = position_pointer_from_position(&panel->pos);
@@ -1700,6 +1725,29 @@ panel_line_indent_left(struct Panel *panel, u32 line_id)
 	if(line->indent == 0) return;
 
 	line->indent -= 1;
+}
+
+void
+panel_cursor_move_to_char(struct Panel *panel, u32 char_id)
+{
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	panel->pos.x = char_id;
+
+	struct Content *content = line_content_get_by_char_pos(ptr.line, panel->pos.x);
+	panel->pos.c = content->id;
+	panel->pos.i = content_char_index_from_pos(content, panel->pos.x);
+}
+
+void
+panel_cursor_mark(struct Panel *panel)
+{
+	panel->mark.pos = panel->pos;
+}
+
+void
+panel_cursor_move_to_mark(struct Panel *panel)
+{
+	panel->pos = panel->mark.pos;
 }
 
 void
@@ -1847,6 +1895,73 @@ buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 }
 
 void
+panel_line_remove(struct Panel *panel, u32 line_id)
+{
+	/* NOTE: This function doesn't free the line */
+	struct Position pos = panel->pos;
+	pos.y = line_id;
+
+	buffer_line_shift_up(&pos, 1);
+	buffer_line_shift_update(&pos);
+
+	struct Buffer *buffer = editor_buffer_get_by_id(pos.b);
+	buffer->line_count -= 1;
+}
+
+void
+panel_line_join_above(struct Panel *panel)
+{
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	if(panel->pos.y <= 0) return;
+
+	struct Line *line_above = buffer_line_get_by_id(ptr.buffer, ptr.line->id-1);
+
+	u64 new_content_count = ptr.line->content_count + line_above->content_count;
+	while(ptr.line->content_max < new_content_count)
+	{
+		line_grow(ptr.line);
+		ptr = position_pointer_from_position(&panel->pos);
+	}
+
+	u64 line_content_size = ptr.line->content_count * sizeof(struct Content);
+	Byte *new_content_data = (Byte *)ptr.line->contents + line_content_size;
+
+	u64 line_above_content_size = line_above->content_count * sizeof(struct Content);
+	mem_cpy(new_content_data, line_above->contents, line_above_content_size);
+	ptr.line->content_count = new_content_count;
+
+	line_content_shift_update(&panel->pos);
+	panel_line_remove(panel, line_above->id);
+	panel_cursor_move_up(panel);
+}
+
+void
+panel_line_join_below(struct Panel *panel)
+{
+	struct PositionPointer ptr = position_pointer_from_position(&panel->pos);
+	if(panel->pos.y >= ptr.buffer->line_count-1) return;
+
+	struct Line *line_below = buffer_line_get_by_id(ptr.buffer, ptr.line->id+1);
+
+	u64 new_content_count = ptr.line->content_count + line_below->content_count;
+	while(ptr.line->content_max < new_content_count)
+	{
+		line_grow(ptr.line);
+		ptr = position_pointer_from_position(&panel->pos);
+	}
+
+	u64 line_content_size = ptr.line->content_count * sizeof(struct Content);
+	Byte *new_content_data = (Byte *)ptr.line->contents + line_content_size;
+
+	u64 line_below_content_size = line_below->content_count * sizeof(struct Content);
+	mem_cpy(new_content_data, line_below->contents, line_below_content_size);
+	ptr.line->content_count = new_content_count;
+
+	line_content_shift_update(&panel->pos);
+	panel_line_remove(panel, line_below->id);
+}
+
+void
 panel_input(struct Panel *panel)
 {
 	/* All Modes */
@@ -1891,13 +2006,15 @@ panel_input(struct Panel *panel)
 				/* Top Left */
 				case key_w: panel_edit_mode_change(panel, edit_mode_visual); break;
 				case key_e: panel_edit_mode_change(panel, edit_mode_insert); break;
+				case key_a: panel_cursor_move_to_mark(panel); break;
 
 				/* Top Right */
 				case key_i: panel_line_indent_right(panel, panel->pos.y); break;
 				case key_o: panel_line_add_below(panel); break;
+				case key_p: panel_line_join_below(panel); break;
 
 				/* Bottom Left */
-				case key_x: panel_remove_char(panel);
+				case key_x: panel_remove_char(panel); break;
 
 				/* Bottom Right */
 				case key_comma: panel_cursor_move_prev_empty_line(panel, true); break;
@@ -1917,6 +2034,7 @@ panel_input(struct Panel *panel)
 
 				case key_f: panel_cursor_move_word_next(panel, false); break;
 				case key_d: panel_cursor_move_word_prev(panel, false); break;
+				case key_a: panel_cursor_mark(panel); break;
 
 				/* Top Left */
 				case key_w: panel_edit_mode_change(panel, edit_mode_visual_line); break;
@@ -1925,6 +2043,10 @@ panel_input(struct Panel *panel)
 				/* Top Right */
 				case key_i: panel_line_indent_left(panel, panel->pos.y); break;
 				case key_o: panel_line_add_above(panel); break;
+				case key_p: panel_line_join_above(panel); break;
+
+				/* Bottom Left */
+				case key_x: /* TODO: Remove line */ break;
 
 				/* Bottom Right */
 				case key_comma: panel_cursor_move_first_line(panel); break;
