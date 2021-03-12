@@ -107,6 +107,26 @@ content_new(u32 id, u32 start, u32 count)
 }
 
 void
+line_content_rec_update(struct Line *line, struct Content *content)
+{
+	/* Rec */
+	if(content->id == 0)
+	{
+		v2 start = V2(content->visual[0].rec.start.x, 0);
+		v2 end = V2(content->visual[content->char_count-1].rec.end.x, editor->font.height);
+		content->rec = REC2(start, end);
+
+	}
+	else
+	{
+		struct Content *prev = line_content_get_by_id(line, content->id - 1);
+		v2 start = V2(prev->rec.end.x, 0);
+		v2 end = v2_a(start, V2(content->visual[content->char_count-1].rec.end.x, editor->font.height));
+		content->rec = REC2(start, end);
+	}
+}
+
+void
 content_data_shift_update(struct Position *position)
 {
 	struct PositionPointer ptr = position_pointer_from_position(position);
@@ -154,21 +174,7 @@ content_data_shift_update(struct Position *position)
 		codepoint_previous = codepoint;
 	}
 
-	/* Rec */
-	if(content->id == 0)
-	{
-		v2 start = V2(content->visual[0].rec.start.x, 0);
-		v2 end = V2(content->visual[content->char_count-1].rec.end.x, editor->font.height);
-		content->rec = REC2(start, end);
-
-	}
-	else
-	{
-		struct Content *prev = line_content_get_by_id(ptr.line, content->id - 1);
-		v2 start = V2(prev->rec.end.x, 0);
-		v2 end = v2_a(start, V2(content->visual[content->char_count-1].rec.end.x, editor->font.height));
-		content->rec = REC2(start, end);
-	}
+	line_content_rec_update(ptr.line, content);
 }
 
 void
@@ -1136,6 +1142,8 @@ panel_remove_char(struct Panel *panel)
 
 	ptr.content->char_count -= 1;
 	ptr.line->char_count -= 1;
+
+	line_content_rec_update(ptr.line, ptr.content);
 }
 
 void

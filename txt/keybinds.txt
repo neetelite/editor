@@ -70,14 +70,14 @@ Y
 u	undo
 U	redo
 
-i	indent right
-I	indent left
+i	indent line right
+I	indent line left
 
 o	add line below
 O	add line above
 
-p
-P
+p	join line below
+P	join line above
 
 [	move to block opening
 ]	move to block closing
@@ -144,5 +144,7 @@ C^c	reverse character casing
 C^e	evaluate expression
 C^i	increment number
 
+C^/	comment
+
 /* Unused */
-qQ tT yY pP sS zZ !@#$%^&*()
+qQ tT yY sS zZ !@#$%^&*()
