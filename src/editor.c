@@ -1531,15 +1531,15 @@ panel_cursor_move_word_prev(struct Panel *panel, bool stop_at_token)
 
 
 		/* Beginning of word */
-		if(char_is_alpha(*pointer_curr.c) == false &&
-		   char_is_alpha(*pointer_prev.c) == true)
+		if(char_is_alphanumeric(*pointer_curr.c) == false &&
+		   char_is_alphanumeric(*pointer_prev.c) == true)
 		{
 			panel->pos = pos_prev;
 			return;
 		}
 
 		/* Beginning of line */
-		if(pos_curr.x == 0 && char_is_alpha(*pointer_curr.c))
+		if(pos_curr.x == 0 && char_is_alphanumeric(*pointer_curr.c))
 		{
 			panel->pos = pos_curr;
 			return;
@@ -1573,15 +1573,15 @@ panel_cursor_move_word_next(struct Panel *panel, bool stop_at_token)
 		}
 
 		/* Beginning of line */
-		if(pos_curr.x == 0 && char_is_alpha(*pointer_curr.c))
+		if(pos_curr.x == 0 && char_is_alphanumeric(*pointer_curr.c))
 		{
 			panel->pos = pos_curr;
 			return;
 		}
 
 		/* Beginning of word */
-		if(char_is_alpha(*pointer_curr.c) == true &&
-		   char_is_alpha(*pointer_prev.c) == false)
+		if(char_is_alphanumeric(*pointer_curr.c) == true &&
+		   char_is_alphanumeric(*pointer_prev.c) == false)
 		{
 			panel->pos = pos_curr;
 			return;
@@ -2064,8 +2064,8 @@ panel_input(struct Panel *panel)
 	if(key_alt_down())
 	{
 		struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
-		String path_read = STR("./test_read.txt");
-		String path_write = STR("./test_write.txt");
+		String path_read = STR("./something.project");
+		String path_write = STR("./something.project");
 
 		if(0) {}
 		else if(key_press(key_w)) buffer_write_path(buffer, path_write);
@@ -2171,7 +2171,7 @@ panel_input(struct Panel *panel)
 			{
 			case key_tab:
 			{
-				if(key_shift_down) panel_line_indent_left(panel, panel->pos.y);
+				if(key_shift_down()) panel_line_indent_left(panel, panel->pos.y);
 				else panel_line_indent_right(panel, panel->pos.y);
 			} break;
 			case key_enter: panel_line_add_below(panel); break;

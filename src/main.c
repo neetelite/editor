@@ -25,11 +25,56 @@
 
 #include "include.h"
 
+void
+os_print_folder(String *path, bool recursively)
+{
+	/* NOTE: Folder name must end in '/' already */
+	String folder_name;
+	str_dup(&folder_name, path);
+	cstr_bs_from_fs(folder_name.data, path->data);
+	str_append_char(&folder_name, '*');
+
+	WIN32_FIND_DATAA file_data;
+	HANDLE file_handle = INVALID_HANDLE_VALUE;
+
+	file_handle = FindFirstFile(folder_name.data, &file_data);
+	if(file_handle == INVALID_HANDLE_VALUE) return;
+
+	loop
+	{
+		String filename;
+		str_alloc_n(&filename, PATH_MAX);
+		str_cat(&filename, path, &STR(file_data.cFileName));
+
+		u32 attributes = file_data.dwFileAttributes;
+		if(attributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			if(!cstr_eql(file_data.cFileName, ".") &&
+			   !cstr_eql(file_data.cFileName, ".."))
+			{
+				str_append_char(&filename, '/');
+				printf("%s\n", filename.data);
+
+				if(recursively) os_print_folder(&filename, recursively);
+			}
+		}
+		else printf("%s\n", filename.data);
+
+		bool file_was_found = FindNextFileA(file_handle, &file_data);
+		if(file_was_found == false) break;
+	}
+
+	str_free(&folder_name);
+}
+
 i32
 main(void)
 {
+	str_system_init();
+
 	/* Path */
 	os_path_build();
+	os_print_folder(&STR_N(os_state.path_run, PATH_MAX), true);
 
 	/* Window */
 	char *window_name = "DEV | Social";
@@ -65,4 +110,5 @@ main(void)
 
 	os_memory_free();
 	mem_print();
+	str_system_term();
 }
