@@ -1,3 +1,5 @@
+If you remove character from and already split character you should be able to input back that many characters
+Update buffer_read_path so it only allocates one buffers and sets the pointers correctly
 For now you're force to have at least one line per buffer, may change later?
 Only update or draw content when needed
 Any more that is not up or down should reset x_min

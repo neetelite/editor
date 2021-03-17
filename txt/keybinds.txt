@@ -18,8 +18,6 @@ K	prev empty line
 "
 
 f	word forward
-
-f	word forward
 d	word back
 
 F	WORD forward
@@ -31,8 +29,8 @@ G
 s
 S
 
-a	goto mark
-A	mark current position
+a	go back
+A	go forward
 
 /* BOTTOM RIGHT - MOVEMENT */
 ,	next 0 intent empty line
@@ -41,8 +39,8 @@ A	mark current position
 <	line file first
 >	line file last
 
-m
-M
+m	goto mark
+M	mark current position
 
 n	move to next highlight
 N	move to prev highlight

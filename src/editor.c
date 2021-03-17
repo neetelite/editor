@@ -1228,7 +1228,10 @@ panel_insert_char(struct Panel *panel, char c)
 		/* Add at the start */
 		if(panel->pos.x == 0)
 		{
-			if(ptr.line->content_count == 0) line_content_add_start(&panel->pos);
+			if(ptr.line->content_count == 0)
+			{
+				line_content_add_start(&panel->pos);
+			}
 			else
 			{
 				panel->pos.c = 0;
@@ -1437,9 +1440,10 @@ editor_init(void)
 	editor = &app->editor;
 
 	/* Settings */
-	font_init(&editor->font, "ibm.ttf", "IBM Plex Mono", 20, "ascii");
-	//font_init(&editor->font, "arial.ttf", "Arial", 24, "ascii");
-	//font_init(&editor->font, "roboto.ttf", "Arial", 24, "ascii");
+	f32 font_size = 30;
+	font_init(&editor->font, "ibm.ttf", "IBM Plex Mono", font_size, "ascii");
+	//font_init(&editor->font, "arial.ttf", "Arial", font_size, "ascii");
+	//font_init(&editor->font, "roboto.ttf", "Arial", font_size, "ascii");
 
 	editor->align_bar    = ALIGN("left", "bottom");
 	editor->align_buffer = ALIGN("left", "top");
@@ -1452,12 +1456,12 @@ editor_init(void)
 
 	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.8);
 	gl_viewport_color_set(editor->color_background);
-	#if 0
+	#if 1
 	editor->content_min = 128;
 	editor->content_max = 128;
 	#else
-	editor->content_min = 64;
-	editor->content_max = 64;
+	editor->content_min = 4;
+	editor->content_max = 4;
 	#endif
 
 	/* Camera */
@@ -1899,6 +1903,40 @@ buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 }
 
 void
+content_free(struct Content *content)
+{
+	if(content->data != NULL) mem_free(content->data);
+	*content = (struct Content){0};
+}
+
+void
+panel_line_clear(struct Panel *panel, u32 line_id)
+{
+	/* TODO: Should I free the data in contents? */
+
+	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
+	struct Line *line = buffer_line_get_by_id(buffer, line_id);
+	for(i32 i = 0; i < line->content_count; ++i)
+	{
+		struct Content *content = line_content_get_by_id(line, i);
+		content_free(content);
+	}
+
+	line->char_count = 0;
+	line->content_count = 0;
+	line->content_max = 0;
+	if(line->contents != NULL) mem_free(line->contents);
+	line->contents = NULL;
+
+	if(panel->pos.y == line_id)
+	{
+		panel->pos.x = 0;
+		panel->pos.c = EOL;
+		panel->pos.i = EOL;
+	}
+}
+
+void
 panel_line_remove(struct Panel *panel, u32 line_id)
 {
 	/* NOTE: This function doesn't free the line */
@@ -1922,7 +1960,11 @@ panel_line_delete(struct Panel *panel, u32 line_id)
 	pos.y = line_id;
 
 	struct Buffer *buffer = editor_buffer_get_by_id(pos.b);
-	if(buffer->line_count == 1) return;
+	if(buffer->line_count == 1)
+	{
+		panel_line_clear(panel, line_id);
+		return;
+	}
 
 	struct Line *line = buffer_line_get_by_id(buffer, pos.y);
 	if(line->content_max) mem_free(line->contents);
@@ -2127,6 +2169,11 @@ panel_input(struct Panel *panel)
 
 			switch(key)
 			{
+			case key_tab:
+			{
+				if(key_shift_down) panel_line_indent_left(panel, panel->pos.y);
+				else panel_line_indent_right(panel, panel->pos.y);
+			} break;
 			case key_enter: panel_line_add_below(panel); break;
 			case key_backspace: panel_backspace(panel); break;
 			default:

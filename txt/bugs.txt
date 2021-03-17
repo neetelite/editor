@@ -1,3 +1,5 @@
 Backspace and content buffer
+
 Implement last line empty if you want exclusive ranges
+
 Visual-logical missmatch with the new indentation system
