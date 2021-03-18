@@ -1,4 +1,3 @@
-
 void
 language_keyword_init(struct Language *language, u32 max)
 {

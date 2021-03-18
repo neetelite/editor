@@ -230,14 +230,30 @@ content_char_draw(struct Content *content, u32 char_index, v4 color)
 	gl_program_unbind();
 }
 
+
+struct Token *
+line_token_from_pos(struct Position *pos)
+{
+	struct Token* result = NULL;
+	struct PositionPointer ptr = position_pointer_from_position(pos);
+	for(i32 i = 0; i < ptr.line->token_count; ++i)
+	{
+		struct Token *curr = &ptr.line->tokens[i];
+		struct Token *next = &ptr.line->tokens[i+1];
+
+		if(curr->pos <= pos->x && pos->x < next->pos)
+		{
+			result = curr;
+			break;
+		}
+	}
+	return(result);
+}
+
 void
-panel_content_text_draw(struct Panel *panel, struct Content *content, v2 offset)
+content_text_draw(struct Position *position, struct Content *content, v2 offset)
 {
 	offset = v2_a(offset, content->rec.start);
-
-	struct Rec2 content_rec = {0};
-	content_rec.start = v2_a(content->rec.start, offset);
-	content_rec.end = v2_a(content->rec.end, offset);
 
 	mat4 mat_view = editor->camera.transform;
 	v4 color = V4_COLOR_WHITE;
@@ -245,10 +261,21 @@ panel_content_text_draw(struct Panel *panel, struct Content *content, v2 offset)
 	struct GL_ProgramText *program = &gl->program_text;
 	gl_program_bind(program->handle);
 
-	gl_uniform_v4(program->location_color, color);
-
+	struct Position pos = *position;
 	for(u32 i = 0; i < content->char_count; ++i)
 	{
+		pos.c = content->id;
+		pos.x = content->char_start + i;
+		pos.i = i;
+
+		struct Token *token = line_token_from_pos(&pos);
+		struct Aesthetic *aes = aesthetic_from_token(token);
+
+		v4 color;
+		if(aes != NULL && aes->foreground.a != 0.0) color = aes->foreground;
+		else color = V4_COLOR_WHITE;
+		gl_uniform_v4(program->location_color, color);
+
 		struct Visual *visual = &content->visual[i];
 		u32 codepoint = content->data[i];
 
@@ -534,6 +561,8 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 	panel_line_number_draw(panel, line);
 	v2 offset = panel_line_offset_gen(panel, line);
 
+	struct Position pos = panel->pos;
+	pos.y = line->id;
 	for(u32 i = 0; i < line->content_count; ++i)
 	{
 		struct Content *content = &line->contents[i];
@@ -567,7 +596,7 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 		}
 
 		/* Text */
-		panel_content_text_draw(panel, content, offset);
+		content_text_draw(&pos, content, offset);
 	}
 }
 
@@ -1485,6 +1514,9 @@ editor_init(void)
 	editor->window_count = 1;
 	editor->windows = mem_alloc(editor->window_count * sizeof(*editor->windows), true);
 	editor->windows[0] = window_new(&editor->buffers[0]);
+
+	/* Aesthetics */
+	aesthetics_init();
 }
 
 void

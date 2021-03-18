@@ -11,6 +11,7 @@
 //#include "panel.h"
 #include "language.h"
 #include "token.h"
+#include "aesthetic.h"
 #include "editor.h"
 #include "editor_utility.h"
 
@@ -25,6 +26,7 @@
 #include "text.c"
 #include "language.c"
 #include "token.c"
+#include "aesthetic.c"
 #include "editor.c"
 #include "editor_utility.c"
 

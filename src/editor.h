@@ -58,48 +58,6 @@ struct Line
 	struct Token *tokens;
 };
 
-enum TokenMeaning
-{
-	token_type,
-	token_keyword,
-	token_preprocessor,
-
-	token_define,
-	token_constant,
-
-	token_function,
-	token_function_declaration,
-
-	token_variable,
-	token_variable_declaration,
-
-	token_i8,
-	token_i16,
-	token_i32,
-	token_i64,
-	token_f32,
-	token_f64,
-
-	token_string,
-	token_string_start,
-	token_string_end,
-
-	token_comment,
-	token_comment_start,
-	token_comment_end,
-
-	token_brackets_start,
-	token_brackets_end,
-
-	token_braces_start,
-	token_braces_end,
-
-	token_parenthesis_start,
-	token_parenthesis_end,
-
-	token_meaning_count,
-};
-
 struct Position
 {
 	i64 b; /* buffer id */
@@ -111,12 +69,6 @@ struct Position
 
 	bool x_min_active;
 	u32 x_min;
-};
-
-struct Token
-{
-	u32 len;
-	struct Position pos;
 };
 
 struct Buffer
@@ -216,27 +168,6 @@ enum EditorMode
 	editor_source,
 	editor_build,
 	editor_debug,
-};
-
-struct Appearance
-{
-	/* NOTE: Transparency 0.0 if you don't want to draw them */
-
-	v4 foreground;
-	v4 background;
-
-	v4 underline;
-	v4 overline;
-	v4 crossline;
-
-	v4 cursor_foreground;
-	v4 cursor_background;
-
-	v4 shadow;
-	v2 shadow_offset;
-
-	v4 contour;
-	f32 contour_size;
 };
 
 struct Editor

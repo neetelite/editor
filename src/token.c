@@ -1,3 +1,22 @@
+void
+line_token_push(struct Line *line, struct Token *token)
+{
+	if(line->token_max == 0)
+	{
+		line->token_max = 1;
+		line->tokens = mem_alloc(line->token_max*sizeof(*line->tokens), true);
+	}
+	else if(line->token_count+1 > line->token_max)
+	{
+		line->token_max *= 2;
+		line->tokens = mem_realloc(line->tokens,
+					   line->token_max*sizeof(*line->tokens));
+	}
+
+	line->tokens[line->token_count] = *token;
+	line->token_count += 1;
+}
+
 bool
 read_token_comment(struct Position *pos_in, struct PositionPointer *ptr_in)
 {
@@ -54,15 +73,18 @@ read_token_identifier(struct Position *pos_in, struct PositionPointer *ptr_in)
 	{
 		struct Line *line = ptr.line;
 		position_update_next_char(&pos, &ptr);
+		len += 1;
 		if(ptr.c == NULL || line->id != ptr.line->id ||
 		   (!char_is_alphanumeric(*ptr.c) && *ptr.c != '_'))
 		{
 			break;
 		}
-		len += 1;
 	}
 
-	//struct Token token = new_token_identifier(&pos, len);
+	struct Token token = new_token_identifier(pos.x, len);
+	token.meaning = token_keyword;
+
+	line_token_push(ptr.line, &token);
 
 	*pos_in = pos;
 	*ptr_in = ptr;
