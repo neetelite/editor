@@ -4,6 +4,9 @@ enum TokenKind
 {
 	token_null,
 
+	token_identifier,
+	token_punctuation,
+
 	token_type,
 	token_keyword,
 	token_preprocessor,

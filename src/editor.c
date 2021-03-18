@@ -361,15 +361,15 @@ buffer_grow(struct Buffer *buffer)
 }
 
 void
-line_content_shift_update(struct Position *pos)
+line_content_shift_update(struct Position *position)
 {
 	/* This function updates char_counts and content data */
 
-	struct PositionPointer ptr = position_pointer_from_position(pos);
-	struct Position pos_new = *pos;
+	struct Position pos = *position;
+	struct PositionPointer ptr = position_pointer_from_position(&pos);
 
 	/* From current content to last content */
-	for(u32 content_id = pos->c; content_id < ptr.line->content_count; ++content_id)
+	for(u32 content_id = position->c; content_id < ptr.line->content_count; ++content_id)
 	{
 
 		/* Update char start */
@@ -387,15 +387,20 @@ line_content_shift_update(struct Position *pos)
 		}
 
 		/* Set the correct content and update it */
-		pos_new.c = content->id;
-		if(content->id != pos->c) pos_new.i = 0;
+		pos.c = content->id;
+		if(content->id != position->c) pos.i = 0;
 
-		content_data_shift_update(&pos_new);
+		content_data_shift_update(&pos);
 	}
 
 	/* Update line char count */
 	struct Content *content_last = line_content_get_last(ptr.line);
 	ptr.line->char_count = content_char_end(content_last);
+
+	/* Tokens */
+	/* TODO: */
+	//pos = *position;
+	//line_tokenize(&pos);
 
 	/* TODO: Should I do a line REC for the visuals? */
 	//struct Content *content_first = ;
@@ -1339,6 +1344,9 @@ panel_screen_background_draw(struct Panel *panel)
 void
 panel_buffer_draw(struct Panel *panel)
 {
+	/* TODO SPEED: */
+	buffer_tokenize(panel);
+
 	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
 	panel_screen_background_draw(panel);
 
@@ -1513,12 +1521,16 @@ editor_init(void)
 	editor->buffer_count = 1;
 	editor->buffers = mem_alloc(editor->buffer_count * sizeof(*editor->buffers), true);
 	editor->buffers[0] = buffer_new();
+	editor->buffers[0].language = language_c;
 
 	/* Window */
 	editor->window_id = 0;
 	editor->window_count = 1;
 	editor->windows = mem_alloc(editor->window_count * sizeof(*editor->windows), true);
 	editor->windows[0] = window_new(&editor->buffers[0]);
+
+	/* Language */
+	lang_c_keyword_init();
 
 	/* Aesthetics */
 	aesthetics_init();
@@ -1939,7 +1951,7 @@ buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 
 	*panel_out = panel;
 
-	line_tokenize(&panel);
+	buffer_tokenize(&panel);
 
 	return(0);
 }

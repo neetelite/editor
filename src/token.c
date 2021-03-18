@@ -75,13 +75,42 @@ read_token_comment(struct Position *pos_in, struct PositionPointer *ptr_in)
 }
 
 bool
+panel_eql_n(struct Position *position, CString cstr, u32 len)
+{
+	struct Position pos = *position;
+	struct PositionPointer ptr = position_pointer_from_position(&pos);
+
+	for(u32 i = 0; i < len; ++i)
+	{
+		if(*ptr.c != *cstr) return(false);
+		position_update_next_char(&pos, &ptr);
+		cstr += 1;
+	}
+	return(true);
+}
+
+bool
+pos_is_keyword(struct Position *pos, u32 len)
+{
+	struct Buffer *buffer = editor_buffer_get_by_id(pos->b);
+	struct Language *language = &languages[buffer->language];
+
+	for(i32 i = 0; i < language->keyword_count; ++i)
+	{
+		String *keyword = &language->keywords[i];
+		if(keyword->len != len) continue;
+		if(panel_eql_n(pos, keyword->data, len)) return(true);
+	}
+	return(false);
+}
+
+bool
 read_token_identifier(struct Position *pos_in, struct PositionPointer *ptr_in)
 {
 	struct Position pos = *pos_in;
 	struct PositionPointer ptr = *ptr_in;
 
 	struct Token token = {0};
-	token.kind = token_keyword;
 	token.pos = pos.x;
 
 	u32 len = 0;
@@ -98,6 +127,8 @@ read_token_identifier(struct Position *pos_in, struct PositionPointer *ptr_in)
 	}
 
 	token.len = len;
+	if(pos_is_keyword(pos_in, token.len)) token.kind = token_keyword;
+	else token.kind = token_identifier;
 	line_token_push(ptr.line, &token);
 
 	*pos_in = pos;
@@ -108,7 +139,7 @@ bool
 read_token_punctuation(struct Position *pos_in, struct PositionPointer *ptr_in)
 {
 	struct Token token = {0};
-	token.kind = token_type;
+	token.kind = token_punctuation;
 	token.pos = pos_in->x;
 	token.len = 1;
 
@@ -117,14 +148,87 @@ read_token_punctuation(struct Position *pos_in, struct PositionPointer *ptr_in)
 }
 
 void
-line_tokenize(struct Panel *panel)
+read_token_punctuation_expected(struct Position *pos_in, struct PositionPointer *ptr_in,
+				char expected_char)
 {
-	/* NOTE: Finite state machine */
-	struct Position pos = panel->pos;
+	struct Position pos = *pos_in;
+	struct PositionPointer ptr = *ptr_in;
+
+	struct Token token = {0};
+	token.kind = token_punctuation;
+	token.pos = pos_in->x;
+
+	position_update_next_char(&pos, &ptr);
+	if(*ptr.c == expected_char) token.len = 2;
+	else token.len = 1;
+
+	line_token_push(ptr_in->line, &token);
+
+	*pos_in = pos;
+	*ptr_in = ptr;
+}
+
+void
+read_token_punctuation_double(struct Position *pos_in, struct PositionPointer *ptr_in)
+{
+	struct Position pos = *pos_in;
+	struct PositionPointer ptr = *ptr_in;
+
+	struct Token token = {0};
+	token.kind = token_punctuation;
+	token.pos = pos_in->x;
+
+	char double_char = *ptr.c;
+	position_update_next_char(&pos, &ptr);
+	if(*ptr.c == double_char) token.len = 2;
+	else token.len = 1;
+
+	line_token_push(ptr_in->line, &token);
+
+	*pos_in = pos;
+	*ptr_in = ptr;
+}
+
+void
+read_token_punctuation_double_or_expected(struct Position *pos_in,
+					  struct PositionPointer *ptr_in,
+					  char expected_char)
+{
+	struct Position pos = *pos_in;
+	struct PositionPointer ptr = *ptr_in;
+
+	struct Token token = {0};
+	token.kind = token_punctuation;
+	token.pos = pos_in->x;
+
+	char double_char = *ptr.c;
+	position_update_next_char(&pos, &ptr);
+	if(*ptr.c == expected_char || *ptr.c == double_char) token.len = 2;
+	else token.len = 1;
+
+	line_token_push(ptr_in->line, &token);
+
+	*pos_in = pos;
+	*ptr_in = ptr;
+}
+
+void
+line_tokenize(struct Position *position)
+{
+	struct Position pos = *position;
 	struct PositionPointer ptr = position_pointer_from_position(&pos);
+
+	ptr.line->token_count = 0;
+	ptr.line->token_max = 0;
+	if(ptr.line->tokens != NULL)
+	{
+		mem_free(ptr.line->tokens);
+		ptr.line->tokens = NULL;
+	}
+	u32 line_init = pos.y;
 	loop
 	{
-		if(ptr.c == NULL) break;
+		if(ptr.line->id != line_init) break;
 
 		switch(*ptr.c)
 		{
@@ -172,21 +276,40 @@ line_tokenize(struct Panel *panel)
 			read_token_punctuation(&pos, &ptr);
 		} break;
 
-		#if 0
-		case '-': token_punctuation_expected(panel, &at, '='); break;
-		case '+': token_punctuation_expected(panel, &at, '='); break;
-		case '*': token_punctuation_expected(panel, &at, '='); break;
+		case '-': read_token_punctuation_expected(&pos, &ptr, '='); break;
+		case '+': read_token_punctuation_expected(&pos, &ptr, '='); break;
+		case '*': read_token_punctuation_expected(&pos, &ptr, '='); break;
 
-		case ':': token_punctuation_double(panel, &at); break;
-		case '!': token_punctuation_double(panel, &at); break;
-		case '&': token_punctuation_double(panel, &at); break;
-		case '|': token_punctuation_double(panel, &at); break;
-		case '%': token_punctuation_double(panel, &at); break;
-		case '<': token_punctuation_double_or_expected(panel, &at, '?'); break;
-		case '>': token_punctuation_double_or_expected(panel, &at, '?'); break;
-		#endif
+		case ':': read_token_punctuation_double(&pos, &ptr); break;
+		case '!': read_token_punctuation_double(&pos, &ptr); break;
+		case '&': read_token_punctuation_double(&pos, &ptr); break;
+		case '|': read_token_punctuation_double(&pos, &ptr); break;
+		case '%': read_token_punctuation_double(&pos, &ptr); break;
+		case '<': read_token_punctuation_double_or_expected(&pos, &ptr, '?'); break;
+		case '>': read_token_punctuation_double_or_expected(&pos, &ptr, '?'); break;
 
 		default: position_update_next_char(&pos, &ptr); break; /* whitespace */
 		}
+	}
+}
+
+void
+buffer_tokenize(struct Panel *panel)
+{
+	struct Position pos = {0};
+	pos.b = panel->pos.b;
+	struct PositionPointer ptr = position_pointer_from_position(&pos);
+
+	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
+	for(i32 i = 0; i < ptr.buffer->line_count; ++i)
+	{
+		struct Line *line = buffer_line_get_by_id(buffer, i);
+		if(line->content_count == 0) continue;
+
+		pos.y = line->id;
+		pos.x = 0;
+		pos.c = 0;
+		pos.i = 0;
+		line_tokenize(&pos);
 	}
 }
