@@ -1377,8 +1377,8 @@ panel_bar_draw(struct Panel *panel)
 void
 panel_draw(struct Panel *panel)
 {
-	panel_bar_draw(panel);
 	panel_buffer_draw(panel);
+	panel_bar_draw(panel);
 	panel_cursor_draw(panel);
 }
 
@@ -1793,8 +1793,8 @@ buffer_write_path(struct Buffer *buffer, String path)
 	}
 
 	/* Write to file */
-	File file = file_init(path);
-	file_open(&file, file_mode_byte_write);
+	struct File file = file_init(path);
+	file_open(&file, file_open_mode_byte_write);
 
 	file_write(&file, file_data, file_size);
 
@@ -1831,8 +1831,8 @@ i32
 buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 {
 	/* Read from file */
-	File file = file_init(path);
-	file_open(&file, file_mode_byte_read);
+	struct File file = file_init(path);
+	file_open(&file, file_open_mode_byte_read);
 
 	u64 filesize = file_size(&file);
 	if(filesize == 0)

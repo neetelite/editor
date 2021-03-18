@@ -59,6 +59,7 @@ os_print_folder(String *path, bool recursively)
 			}
 		}
 		else printf("%s\n", filename.data);
+		str_free(&filename);
 
 		bool file_was_found = FindNextFileA(file_handle, &file_data);
 		if(file_was_found == false) break;
@@ -74,7 +75,26 @@ main(void)
 
 	/* Path */
 	os_path_build();
-	os_print_folder(&STR_N(os_state.path_run, PATH_MAX), true);
+	//struct FileNode node = file_node_init(STR(os_state.path_run), true);
+	//file_node_print(&node);
+	String project_path;
+	str_alloc_n(&project_path, PATH_MAX);
+	str_cat(&project_path, &STR(os_state.path_src), &STR("something.project"));
+
+	struct File project_file = file_init(project_path);
+	file_open(&project_file, file_open_mode_byte_read);
+	Size size = file_size(&project_file);
+
+	String paths;
+	str_alloc_n(&paths, size);
+	paths.len = size;
+	file_read(&project_file, paths.data, size);
+	struct FileTree tree = file_tree_init(paths);
+	file_tree_print(&tree);
+
+	str_free(&project_path);
+	str_free(&paths);
+	file_close(&project_file);
 
 	/* Window */
 	char *window_name = "DEV | Social";
