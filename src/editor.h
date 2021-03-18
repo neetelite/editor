@@ -131,6 +131,8 @@ struct Buffer
 	u32 matcher_max;
 	struct Token *matchers;
 
+	enum LanguageType language;
+
 	/* TODO: update this manually each time we add or remove a character */
 	u32 char_count;
 };

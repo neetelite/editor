@@ -1,0 +1,8 @@
+Key	Action	Followed by
+
+^[	(ESC) cancel started command; otherwise UNBOUND
+^\	leave visual mode (go into "ex" mode)
+^]	use word at cursor to lookup function in tags file, edit that file/code
+^^	switch file buffers
+^_	UNBOUND
+^?	(DELETE) UNBOUND

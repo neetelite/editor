@@ -9,6 +9,8 @@
 //#include "line.h"
 //#include "buffer.h"
 //#include "panel.h"
+#include "language.h"
+#include "token.h"
 #include "editor.h"
 #include "editor_utility.h"
 
@@ -21,6 +23,7 @@
 #include "gl_shape.c"
 
 #include "text.c"
+#include "language.c"
 #include "token.c"
 #include "editor.c"
 #include "editor_utility.c"

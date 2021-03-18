@@ -1,0 +1,9 @@
+// This is a comment
+/* And another one :) */
+
+void
+cstr_draw(char *text, u32 len, v2 pos, struct Alignment *align, f32 z, v4 color)
+{
+	//cstr_draw_full(&editor->font, text, len, pos, align, gl->projection_2d, 0.0, color);
+	cstr_draw_full(&editor->font, text, len, pos, align, editor->camera.transform, z, color);
+}
