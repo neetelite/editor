@@ -1,8 +1,8 @@
 struct Position;
 
-enum TokenMeaning
+enum TokenKind
 {
-	token_meaning_null,
+	token_null,
 
 	token_type,
 	token_keyword,
@@ -41,36 +41,12 @@ enum TokenMeaning
 	token_parenthesis_start,
 	token_parenthesis_end,
 
-	token_meaning_count,
-};
-
-enum TokenKind
-{
-	token_null,
-
-	token_identifier,
-	token_punctuation,
-	token_literal_number,
-	token_literal_string,
+	token_count,
 };
 
 struct Token
 {
-	u32 len;
-	//struct Position pos;
-	f32 pos;
 	enum TokenKind kind;
-	enum TokenMeaning meaning;
+	f32 pos;
+	u32 len;
 };
-
-struct Token
-new_token_identifier(f32 pos, u32 len)
-{
-	struct Token result = {0};
-	result.len = len;
-	//result.pos = *pos;
-	result.pos = pos;
-	result.kind = token_identifier;
-	result.meaning = token_meaning_null;
-	return(result);
-}

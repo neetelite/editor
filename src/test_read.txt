@@ -1,5 +1,5 @@
 // This is a comment
-/* And another one :) */
+/*5*/ aaaoutside of the comment
 
 void
 cstr_draw(char *text, u32 len, v2 pos, struct Alignment *align, f32 z, v4 color)

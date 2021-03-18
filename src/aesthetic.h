@@ -19,4 +19,4 @@ struct Aesthetic
 	f32 contour_size;
 };
 
-struct Aesthetic aesthetics[token_meaning_count];
+struct Aesthetic aesthetics[token_count];

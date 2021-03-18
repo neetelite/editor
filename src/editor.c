@@ -239,8 +239,13 @@ line_token_from_pos(struct Position *pos)
 	for(i32 i = 0; i < ptr.line->token_count; ++i)
 	{
 		struct Token *curr = &ptr.line->tokens[i];
-		struct Token *next = &ptr.line->tokens[i+1];
+		if(i == ptr.line->token_count-1)
+		{
+			result = curr;
+			break;
+		}
 
+		struct Token *next = &ptr.line->tokens[i+1];
 		if(curr->pos <= pos->x && pos->x < next->pos)
 		{
 			result = curr;

@@ -23,16 +23,25 @@ read_token_comment(struct Position *pos_in, struct PositionPointer *ptr_in)
 	struct Position pos = *pos_in;
 	struct PositionPointer ptr = *ptr_in;
 
+	struct Token token = {0};
+	token.kind = token_comment;
+	token.pos = pos.x;
+
 	position_update_next_char(&pos, &ptr);
 
 	if(0) {}
 	else if(*ptr.c == '/')
 	{
+		/* Line comment */
+		token.len = ptr.line->char_count - token.pos;
+		line_token_push(ptr_in->line, &token);
+
 		pos.x = ptr.line->char_count;
 		position_update_next_char(&pos, &ptr);
 	}
 	else if(*ptr.c == '*')
 	{
+		/* TODO: Block comments can be multilined */
 		/* Block comment */
 		position_update_next_char(&pos, &ptr);
 
@@ -51,6 +60,9 @@ read_token_comment(struct Position *pos_in, struct PositionPointer *ptr_in)
 			}
 			position_update_next_char(&pos, &ptr);
 		}
+
+		token.len = pos.x - token.pos;
+		line_token_push(ptr_in->line, &token);
 	}
 	else
 	{
@@ -68,6 +80,10 @@ read_token_identifier(struct Position *pos_in, struct PositionPointer *ptr_in)
 	struct Position pos = *pos_in;
 	struct PositionPointer ptr = *ptr_in;
 
+	struct Token token = {0};
+	token.kind = token_keyword;
+	token.pos = pos.x;
+
 	u32 len = 0;
 	loop
 	{
@@ -81,13 +97,23 @@ read_token_identifier(struct Position *pos_in, struct PositionPointer *ptr_in)
 		}
 	}
 
-	struct Token token = new_token_identifier(pos.x, len);
-	token.meaning = token_keyword;
-
+	token.len = len;
 	line_token_push(ptr.line, &token);
 
 	*pos_in = pos;
 	*ptr_in = ptr;
+}
+
+bool
+read_token_punctuation(struct Position *pos_in, struct PositionPointer *ptr_in)
+{
+	struct Token token = {0};
+	token.kind = token_type;
+	token.pos = pos_in->x;
+	token.len = 1;
+
+	line_token_push(ptr_in->line, &token);
+	position_update_next_char(pos_in, ptr_in);
 }
 
 void
@@ -120,28 +146,21 @@ line_tokenize(struct Panel *panel)
 		case '_':
 		{
 			read_token_identifier(&pos, &ptr);
-		}
-
-		#if 0
-		/* Identifier */
-		case 'a' ... 'z':
-		case 'A' ... 'Z':
-		case '_':
-		{
-			token_identifier(panel, &at);
 		} break;
 
+		#if 0
 		/* String */
 		case '"':
 		{
-			token_string(panel, &at);
+			read_token_string(panel, &at);
 		} break;
 
 		/* Number */
 		case '0' ... '9':
 		{
-			token_number(panel, &at);
+			read_token_number(panel, &at);
 		} break;
+		#endif
 
 		/* Punctuation */
 		case '#': case '@': case '$':
@@ -150,9 +169,10 @@ line_tokenize(struct Panel *panel)
 		case '[': case ']':
 		case '{': case '}':
 		{
-			token_punctuation(panel, &at);
+			read_token_punctuation(&pos, &ptr);
 		} break;
 
+		#if 0
 		case '-': token_punctuation_expected(panel, &at, '='); break;
 		case '+': token_punctuation_expected(panel, &at, '='); break;
 		case '*': token_punctuation_expected(panel, &at, '='); break;
