@@ -21,6 +21,7 @@
 #include "gl_shape.c"
 
 #include "text.c"
+#include "token.c"
 #include "editor.c"
 #include "editor_utility.c"
 

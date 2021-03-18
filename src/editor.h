@@ -45,25 +45,59 @@ struct Content
 struct Line
 {
 	u32 id;
+	u32 indent;
+
 	u32 char_count;
 
 	u32 content_count;
 	u32 content_max;
 	struct Content *contents;
 
-	u32 indent;
+	u32 token_count;
+	u32 token_max;
+	struct Token *tokens;
 };
 
-struct Buffer
+enum TokenMeaning
 {
-	u32 id;
+	token_type,
+	token_keyword,
+	token_preprocessor,
 
-	u32 line_count;
-	u32 line_max;
-	struct Line *lines;
+	token_define,
+	token_constant,
 
-	/* TODO: update this manually each time we add or remove a character */
-	u32 char_count;
+	token_function,
+	token_function_declaration,
+
+	token_variable,
+	token_variable_declaration,
+
+	token_i8,
+	token_i16,
+	token_i32,
+	token_i64,
+	token_f32,
+	token_f64,
+
+	token_string,
+	token_string_start,
+	token_string_end,
+
+	token_comment,
+	token_comment_start,
+	token_comment_end,
+
+	token_brackets_start,
+	token_brackets_end,
+
+	token_braces_start,
+	token_braces_end,
+
+	token_parenthesis_start,
+	token_parenthesis_end,
+
+	token_meaning_count,
 };
 
 struct Position
@@ -77,6 +111,28 @@ struct Position
 
 	bool x_min_active;
 	u32 x_min;
+};
+
+struct Token
+{
+	u32 len;
+	struct Position pos;
+};
+
+struct Buffer
+{
+	u32 id;
+
+	u32 line_count;
+	u32 line_max;
+	struct Line *lines;
+
+	u32 matcher_count;
+	u32 matcher_max;
+	struct Token *matchers;
+
+	/* TODO: update this manually each time we add or remove a character */
+	u32 char_count;
 };
 
 struct PositionPointer
@@ -148,6 +204,39 @@ char edit_mode_str_table[edit_mode_count][EDIT_MODE_STR_SIZE] =
 	[edit_mode_visual_line] = "Visual-Line",
 };
 
+struct Bar
+{
+	f32 height;
+};
+
+enum EditorMode
+{
+	editor_source,
+	editor_build,
+	editor_debug,
+};
+
+struct Appearance
+{
+	/* NOTE: Transparency 0.0 if you don't want to draw them */
+
+	v4 foreground;
+	v4 background;
+
+	v4 underline;
+	v4 overline;
+	v4 crossline;
+
+	v4 cursor_foreground;
+	v4 cursor_background;
+
+	v4 shadow;
+	v2 shadow_offset;
+
+	v4 contour;
+	f32 contour_size;
+};
+
 struct Editor
 {
 	struct Camera camera;
@@ -158,6 +247,10 @@ struct Editor
 	u32 window_id;
 	u32 window_count;
 	struct Window *windows;
+
+	struct Bar bar;
+
+	enum EditorMode mode;
 
 	/* Settings */
 	struct Asset_Font font;
@@ -174,7 +267,7 @@ struct Editor
 	u32 content_min;
 	u32 content_max;
 
-	    /* Debug */
+	/* Debug */
 	bool draw_content_background;
 	bool print_movement_info;
 };
@@ -183,49 +276,7 @@ struct Editor *editor;
 
 /* FUNCTIONS */
 void cstr_draw(char *text, u32 len, v2 pos, struct Alignment *align, f32 z, v4 color);
+struct PositionPointer position_pointer_from_position(struct Position *position);
 
-#if 0
-/* Content */
-struct Content content_new(u32 id, u32 start, u32 count);
-void content_data_shift_update(struct Line *line, u32 content_id);
-void content_data_shift_right(struct Content *content, u32 char_pos, u32 n);
-void content_char_draw(struct Content *content, u32 char_index, v4 color);
-void content_draw(struct Content *content);
-
-/* Line */
-struct Line line_new(u32 id);
-void line_grow(struct Line *line);
-void line_content_shift_update(struct Line *line, u32 content_id);
-void line_content_shift_right(struct Line *line, u32 content_id, u32 n);
-void line_content_add_before(struct Line *line, u32 content_id);
-void line_content_add_end(struct Line *line, u32 content_id);
-void line_content_add_between(struct Line *line, u32 content_id, u32 char_pos);
-void line_content_input(struct Line *line, u32 content_id, char c, u32 char_pos);
-void line_input(struct Line *line, char c, u32 char_pos);
-void line_number_draw(struct Line *line);
-void line_draw(struct Line *line);
-
-/* Buffer */
-struct Buffer buffer_new(void);
-void buffer_grow(struct Buffer *buffer);
-void buffer_line_add_bellow(struct Buffer *buffer);
-void buffer_cursor_move_up(struct Buffer *buffer);
-void buffer_cursor_move_down(struct Buffer *buffer);
-void buffer_cursor_move_right(struct Buffer *buffer);
-void buffer_cursor_move_left(struct Buffer *buffer);
-void buffer_cursor_move_end(struct Buffer *buffer);
-void buffer_cursor_draw(struct Buffer *buffer);
-void buffer_input(struct Buffer *buffer, char c);
-void buffer_draw(struct Buffer *buffer);
-
-/* Panel */
-void panel_bar_draw(struct Panel *panel);
-void panel_draw(struct Panel *panel);
-
-/* Editor */
-void editor_edit_mode_change(enum EditMode edit_mode);
-void editor_init(void);
-void editor_input(void);
-void editor_update(void);
-void editor_draw(void);
-#endif
+void position_update_next_char(struct Position *pos, struct PositionPointer *ptr);
+void position_update_prev_char(struct Position *pos, struct PositionPointer *ptr);

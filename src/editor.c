@@ -842,6 +842,9 @@ panel_cursor_move_start(struct Panel *panel)
 	}
 }
 
+//void
+//cursor_move_end(struct Position *pos)
+
 void
 panel_cursor_move_end(struct Panel *panel)
 {
@@ -1899,6 +1902,8 @@ buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 
 	*panel_out = panel;
 
+	line_tokenize(&panel);
+
 	return(0);
 }
 
@@ -2064,13 +2069,12 @@ panel_input(struct Panel *panel)
 	if(key_alt_down())
 	{
 		struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
-		String path_read = STR("./something.project");
-		String path_write = STR("./something.project");
+		String path_read = STR("./test_read.txt");
+		String path_write = STR("./test_write.txt");
 
 		if(0) {}
 		else if(key_press(key_w)) buffer_write_path(buffer, path_write);
 		else if(key_press(key_r)) buffer_read_path(buffer, path_read, panel);
-
 		else if(key_press(key_j)) panel_screen_move_down(panel);
 		else if(key_press(key_k)) panel_screen_move_up(panel);
 		return;
