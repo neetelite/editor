@@ -10,6 +10,14 @@ aesthetics_init(void)
 		{
 			aes->foreground = v4_mf(V4_COLOR_WHITE, 0.2);
 		} break;
+		case token_string:
+		{
+			aes->foreground = V4_COLOR_GREEN;
+		} break;
+		case token_number:
+		{
+			aes->foreground = V4_COLOR_YELLOW;
+		} break;
 		case token_keyword:
 		{
 			aes->foreground = V4_COLOR_RED;

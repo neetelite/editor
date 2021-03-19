@@ -1,5 +1,5 @@
+Infinite loop when typing '/' character
+Infinite loop when loading certain files
 Backspace and content buffer
-
 Implement last line empty if you want exclusive ranges
-
 Visual-logical missmatch with the new indentation system

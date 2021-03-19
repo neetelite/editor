@@ -1345,7 +1345,7 @@ void
 panel_buffer_draw(struct Panel *panel)
 {
 	/* TODO SPEED: */
-	buffer_tokenize(panel);
+	//buffer_tokenize(panel);
 
 	struct Buffer *buffer = editor_buffer_get_by_id(panel->pos.b);
 	panel_screen_background_draw(panel);
@@ -1356,9 +1356,12 @@ panel_buffer_draw(struct Panel *panel)
 	if(line_start < 0) line_start = 0;
 	if(line_end > buffer->line_count) line_end = buffer->line_count;
 
+	struct Position pos = {0};
 	for(u32 i = line_start; i < line_end; ++i)
 	{
 		struct Line *line = &buffer->lines[i];
+		pos.y = i;
+		//if(line->content_count > 0) line_tokenize(&pos);
 		panel_line_draw(panel, line);
 	}
 }
@@ -1485,7 +1488,7 @@ editor_init(void)
 	editor = &app->editor;
 
 	/* Settings */
-	f32 font_size = 30;
+	f32 font_size = 22;
 	font_init(&editor->font, "ibm.ttf", "IBM Plex Mono", font_size, "ascii");
 	//font_init(&editor->font, "arial.ttf", "Arial", font_size, "ascii");
 	//font_init(&editor->font, "roboto.ttf", "Arial", font_size, "ascii");

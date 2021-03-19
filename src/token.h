@@ -27,6 +27,8 @@ enum TokenKind
 	token_f32,
 	token_f64,
 
+	token_number,
+
 	token_string,
 	token_string_start,
 	token_string_end,

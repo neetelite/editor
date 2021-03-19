@@ -135,7 +135,56 @@ read_token_identifier(struct Position *pos_in, struct PositionPointer *ptr_in)
 	*ptr_in = ptr;
 }
 
-bool
+void
+read_token_string(struct Position *pos_in, struct PositionPointer *ptr_in)
+{
+	struct Position pos = *pos_in;
+	struct PositionPointer ptr = *ptr_in;
+
+	struct Token token = {0};
+	token.kind = token_string;
+	token.pos = pos_in->x;
+
+	loop
+	{
+		position_update_next_char(&pos, &ptr);
+		if(ptr.c == NULL);
+		else if(*ptr.c == '\\') position_update_next_char(&pos, &ptr);
+		else if(*ptr.c == '"') break;
+	}
+	position_update_next_char(&pos, &ptr);
+
+	token.len = pos.x - token.pos;
+	line_token_push(ptr_in->line, &token);
+
+	*pos_in = pos;
+	*ptr_in = ptr;
+}
+
+void
+read_token_number(struct Position *pos_in, struct PositionPointer *ptr_in)
+{
+	struct Position pos = *pos_in;
+	struct PositionPointer ptr = *ptr_in;
+
+	struct Token token = {0};
+	token.kind = token_number;
+	token.pos = pos_in->x;
+
+	loop
+	{
+		position_update_next_char(&pos, &ptr);
+		if(char_is_digit(*ptr.c) == false && *ptr.c != '.') break;
+	}
+
+	token.len = pos.x - token.pos;
+	line_token_push(ptr_in->line, &token);
+
+	*pos_in = pos;
+	*ptr_in = ptr;
+}
+
+void
 read_token_punctuation(struct Position *pos_in, struct PositionPointer *ptr_in)
 {
 	struct Token token = {0};
@@ -228,7 +277,7 @@ line_tokenize(struct Position *position)
 	u32 line_init = pos.y;
 	loop
 	{
-		if(ptr.line->id != line_init) break;
+		if(ptr.line->id != line_init || ptr.c == NULL) break;
 
 		switch(*ptr.c)
 		{
@@ -240,8 +289,7 @@ line_tokenize(struct Position *position)
 		{
 			if(read_token_comment(&pos, &ptr) == false)
 			{
-				/* TODO: */
-				//token_punctuation_expected(panel, &at, '=');
+				read_token_punctuation_expected(&pos, &ptr, '=');
 			}
 		} break;
 
@@ -252,19 +300,17 @@ line_tokenize(struct Position *position)
 			read_token_identifier(&pos, &ptr);
 		} break;
 
-		#if 0
 		/* String */
 		case '"':
 		{
-			read_token_string(panel, &at);
+			read_token_string(&pos, &ptr);
 		} break;
 
 		/* Number */
 		case '0' ... '9':
 		{
-			read_token_number(panel, &at);
+			read_token_number(&pos, &ptr);
 		} break;
-		#endif
 
 		/* Punctuation */
 		case '#': case '@': case '$':
