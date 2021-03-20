@@ -1,5 +1,5 @@
 void
-cstr_draw(char *text, u32 len, v2 pos, struct Alignment *align, f32 z, v4 color)
+cstr_draw(CString text, u32 len, Vec2 pos, struct Alignment *align, f32 z, Vec4 color)
 {
 	//cstr_draw_full(&editor->font, text, len, pos, align, gl->projection_2d, 0.0, color);
 	cstr_draw_full(&editor->font, text, len, pos, align, editor->camera.transform, z, color);
@@ -17,14 +17,14 @@ POS(u32 b, u32 y, u32 x, i32 c, i32 i)
 	return(result);
 }
 
-v2
+Vec2
 panel_line_offset_gen(struct Panel *panel, struct Line *line)
 {
 	f32 tab = editor->tab_size * editor->space_size * line->indent;
 	f32 offset_x = (editor->line_number_width + editor->margin_left + tab) + panel->screen.pos.x;
 	f32 offset_y = (HEIGHT - (editor->font.height * (1 + line->id))) + panel->screen.pos.y;
 
-	v2 result = V2(offset_x, offset_y);
+	Vec2 result = VEC2(offset_x, offset_y);
 	return(result);
 }
 
@@ -111,23 +111,23 @@ line_content_rec_update(struct Line *line, struct Content *content)
 {
 	if(content->char_count == 0)
 	{
-		content->rec = REC2(V2_ZERO, V2_ZERO);
+		content->rec = REC2(VEC2_ZERO, VEC2_ZERO);
 		return;
 	}
 
 	/* Rec */
 	if(content->id == 0)
 	{
-		v2 start = V2(content->visual[0].rec.start.x, 0);
-		v2 end = V2(content->visual[content->char_count-1].rec.end.x, editor->font.height);
+		Vec2 start = VEC2(content->visual[0].rec.start.x, 0);
+		Vec2 end = VEC2(content->visual[content->char_count-1].rec.end.x, editor->font.height);
 		content->rec = REC2(start, end);
 
 	}
 	else
 	{
 		struct Content *prev = line_content_get_by_id(line, content->id - 1);
-		v2 start = V2(prev->rec.end.x, 0);
-		v2 end = v2_a(start, V2(content->visual[content->char_count-1].rec.end.x, editor->font.height));
+		Vec2 start = VEC2(prev->rec.end.x, 0);
+		Vec2 end = vec2_a(start, VEC2(content->visual[content->char_count-1].rec.end.x, editor->font.height));
 		content->rec = REC2(start, end);
 	}
 }
@@ -140,8 +140,8 @@ content_data_shift_update(struct Position *position)
 
 	f32 scale = 1.0;
 
-	v2 pos = V2_ZERO;
-	v2 min, max;
+	Vec2 pos = VEC2_ZERO;
+	Vec2 min, max;
 	u32 codepoint_previous = 0;
 
 	/* TODO: */
@@ -151,16 +151,16 @@ content_data_shift_update(struct Position *position)
 		struct Visual *visual = &content->visual[i];
 		u32 codepoint = content->data[i];
 
-		v2 advance = V2_ZERO;
+		Vec2 advance = VEC2_ZERO;
 		advance.x = scale*font_kerning_get(&editor->font, codepoint, codepoint_previous);
 		pos.x += advance.x;
 
 		struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 
-		v2 baseline_align = font_glyph_alignment_get(&editor->font, codepoint);
-		baseline_align = v2_m(baseline_align, V2(texture.image.width, texture.image.height));
+		Vec2 baseline_align = font_glyph_alignment_get(&editor->font, codepoint);
+		baseline_align = vec2_m(baseline_align, VEC2(texture.image.width, texture.image.height));
 
-		v2 render_pos = v2_s(pos, baseline_align);
+		Vec2 render_pos = vec2_s(pos, baseline_align);
 
 		/* TODO: Don't use the current codepoint, use a space codepoint maybe? */
 		if(char_is_whitespace(codepoint))
@@ -168,12 +168,12 @@ content_data_shift_update(struct Position *position)
 			f32 end_x = font_kerning_get(&editor->font, codepoint, codepoint);
 
 			min = render_pos;
-			max = v2_a(render_pos, V2(end_x, editor->font.height));
+			max = vec2_a(render_pos, VEC2(end_x, editor->font.height));
 		}
 		else
 		{
 			min = render_pos;
-			max = v2_a(render_pos, V2(texture.image.width, texture.image.height));
+			max = vec2_a(render_pos, VEC2(texture.image.width, texture.image.height));
 		}
 		visual->rec = REC2(min, max);
 
@@ -196,15 +196,15 @@ content_data_shift_right(struct Position *pos, u32 n)
 }
 
 void
-content_char_draw(struct Content *content, u32 char_index, v4 color)
+content_char_draw(struct Content *content, u32 char_index, Vec4 color)
 {
 	f32 nw = editor->line_number_width;
-	mat4 mat_view = editor->camera.transform;
+	Mat4 mat_view = editor->camera.transform;
 
 	struct GL_ProgramText *program = &gl->program_text;
 	gl_program_bind(program->handle);
 
-	gl_uniform_v4(program->location_color, color);
+	gl_uniform_vec4(program->location_color, color);
 
 	struct Visual *visual = &content->visual[char_index];
 	u32 codepoint = content->data[char_index];
@@ -212,15 +212,15 @@ content_char_draw(struct Content *content, u32 char_index, v4 color)
 	struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 	gl_texture_bind(&texture, GL_TEXTURE_2D);
 
-	v2 min = v2_a(visual->rec.start, V2(editor->margin_left+nw, 0));
-	v2 max = v2_a(visual->rec.end, V2(editor->margin_left+nw, 0));
+	Vec2 min = vec2_a(visual->rec.start, VEC2(editor->margin_left+nw, 0));
+	Vec2 max = vec2_a(visual->rec.end, VEC2(editor->margin_left+nw, 0));
 
 	struct Rec2 rec = REC2(min, max);
 	struct Box2 box = box2_from_rec2(rec);
 
-	v3 pos = V3(box.pos.x, box.pos.y, canvas->z[layer_content_text]);
-	v3 dim = V3(box.dim.x, box.dim.y, 0.0);
-	mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, V3_ZERO));
+	Vec3 pos = VEC3(box.pos.x, box.pos.y, canvas->z[layer_content_text]);
+	Vec3 dim = VEC3(box.dim.x, box.dim.y, 0.0);
+	Mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, VEC3_ZERO));
 	gl_uniform_mat4(program->location_mvp, mvp);
 
 	u32 triangle_count = 2;
@@ -256,12 +256,12 @@ line_token_from_pos(struct Position *pos)
 }
 
 void
-content_text_draw(struct Position *position, struct Content *content, v2 offset)
+content_text_draw(struct Position *position, struct Content *content, Vec2 offset)
 {
-	offset = v2_a(offset, content->rec.start);
+	offset = vec2_a(offset, content->rec.start);
 
-	mat4 mat_view = editor->camera.transform;
-	v4 color = V4_COLOR_WHITE;
+	Mat4 mat_view = editor->camera.transform;
+	Vec4 color = VEC4_COLOR_WHITE;
 
 	struct GL_ProgramText *program = &gl->program_text;
 	gl_program_bind(program->handle);
@@ -276,10 +276,10 @@ content_text_draw(struct Position *position, struct Content *content, v2 offset)
 		struct Token *token = line_token_from_pos(&pos);
 		struct Aesthetic *aes = aesthetic_from_token(token);
 
-		v4 color;
+		Vec4 color;
 		if(aes != NULL && aes->foreground.a != 0.0) color = aes->foreground;
-		else color = V4_COLOR_WHITE;
-		gl_uniform_v4(program->location_color, color);
+		else color = VEC4_COLOR_WHITE;
+		gl_uniform_vec4(program->location_color, color);
 
 		struct Visual *visual = &content->visual[i];
 		u32 codepoint = content->data[i];
@@ -287,15 +287,15 @@ content_text_draw(struct Position *position, struct Content *content, v2 offset)
 		struct GL_Texture texture = font_glyph_texture_get(&editor->font, codepoint);
 		gl_texture_bind(&texture, GL_TEXTURE_2D);
 
-		v2 min = v2_a(visual->rec.start, offset);
-		v2 max = v2_a(visual->rec.end, offset);
+		Vec2 min = vec2_a(visual->rec.start, offset);
+		Vec2 max = vec2_a(visual->rec.end, offset);
 
 		struct Rec2 rec = REC2(min, max);
 		struct Box2 box = box2_from_rec2(rec);
 
-		v3 pos = V3(box.pos.x, box.pos.y, canvas->z[layer_content_text]);
-		v3 dim = V3(box.dim.x, box.dim.y, 0.0);
-		mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, V3_ZERO));
+		Vec3 pos = VEC3(box.pos.x, box.pos.y, canvas->z[layer_content_text]);
+		Vec3 dim = VEC3(box.dim.x, box.dim.y, 0.0);
+		Mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, VEC3_ZERO));
 		gl_uniform_mat4(program->location_mvp, mvp);
 
 		u32 triangle_count = 2;
@@ -428,12 +428,12 @@ void
 line_content_add_start(struct Position *pos)
 {
 	/* NOTE: Only use for start of line */
-	ASSERT(pos->x == 0);
+	DBG_ASSERT(pos->x == 0);
 
 	struct Buffer *buffer = editor_buffer_get_by_id(pos->b);
 	struct Line *line = buffer_line_get_by_id(buffer, pos->y);
 
-	ASSERT(line->content_max == 0)
+	DBG_ASSERT(line->content_max == 0)
 	line_init(line);
 	line->content_count += 1;
 
@@ -448,8 +448,8 @@ void
 line_content_add_end(struct Position *pos)
 {
 	/* NOTE: Only use for end of line */
-	ASSERT(pos->c == EOL);
-	ASSERT(pos->i == EOL);
+	DBG_ASSERT(pos->c == EOL);
+	DBG_ASSERT(pos->i == EOL);
 
 	struct Buffer *buffer = editor_buffer_get_by_id(pos->b);
 	struct Line *line = buffer_line_get_by_id(buffer, pos->y);
@@ -485,7 +485,7 @@ line_content_add_between(struct Position *pos)
 {
 	/* TODO: Change this to char_index */
 	struct PositionPointer pointer = position_pointer_from_position(pos);
-	ASSERT(content_is_full(pointer.content) == true);
+	DBG_ASSERT(content_is_full(pointer.content) == true);
 
 	/* NOTE: if content_max = 1, we need to do this twice */
 	//if(pointer.line->content_count+2 > pointer.line->content_max)
@@ -535,10 +535,10 @@ line_content_add_between(struct Position *pos)
 }
 
 void
-line_content_input(struct Position *pos, char c)
+line_content_input(struct Position *pos, Char c)
 {
 	struct PositionPointer pointer = position_pointer_from_position(pos);
-	ASSERT(pos->i <= pointer.content->char_count);
+	DBG_ASSERT(pos->i <= pointer.content->char_count);
 
 	if(pos->i < pointer.content->char_count)
 	{
@@ -556,20 +556,20 @@ panel_line_number_draw(struct Panel *panel, struct Line *line)
 {
 	f32 pos_x = editor->margin_left + panel->screen.pos.x;
 	f32 pos_y = (HEIGHT - (editor->font.height * line->id)) + panel->screen.pos.y;
-	v2 pos = V2(pos_x, pos_y);
+	Vec2 pos = VEC2(pos_x, pos_y);
 
-	char content[5];
+	Char content[5];
 	if(line->id < 10) snprintf(content, 5, " %d", line->id);
 	else snprintf(content, 5, "%d", line->id);
 
-	cstr_draw(content, 5, pos, &editor->align_buffer, canvas->z[layer_content_text], V4_COLOR_RED);
+	cstr_draw(content, 5, pos, &editor->align_buffer, canvas->z[layer_content_text], VEC4_COLOR_RED);
 }
 
 void
 panel_line_draw(struct Panel *panel, struct Line *line)
 {
 	panel_line_number_draw(panel, line);
-	v2 offset = panel_line_offset_gen(panel, line);
+	Vec2 offset = panel_line_offset_gen(panel, line);
 
 	struct Position pos = panel->pos;
 	pos.y = line->id;
@@ -579,27 +579,27 @@ panel_line_draw(struct Panel *panel, struct Line *line)
 		if(content->char_count == 0) continue;
 
 		struct Rec2 content_rec = {0};
-		content_rec.start = v2_a(content->rec.start, offset);
-		content_rec.end = v2_a(content->rec.end, offset);
+		content_rec.start = vec2_a(content->rec.start, offset);
+		content_rec.end = vec2_a(content->rec.end, offset);
 		if(rec2_overlap(&content_rec, &panel->screen.rec) == false) continue;
 
 		/* Background */
 		if(editor->draw_content_background)
 		{
-			v4 color = V4_ZERO;
-			if(content->char_count == content->size_alloc) color = V4_COLOR_BLUE; /* FULL */
-			else if(content->size == content->size_alloc) color = V4_COLOR_GREEN; /* NOT FULL */
-			else color = V4_COLOR_RED; /* SPLIT */
+			Vec4 color = VEC4_ZERO;
+			if(content->char_count == content->size_alloc) color = VEC4_COLOR_BLUE; /* FULL */
+			else if(content->size == content->size_alloc) color = VEC4_COLOR_GREEN; /* NOT FULL */
+			else color = VEC4_COLOR_RED; /* SPLIT */
 
 			if(line->id % 2 == 0)
 			{
-			    if(content->id % 2 == 0) color = v4_mf(color, 0.5);
-			    else color = v4_mf(color, 0.3);
+			    if(content->id % 2 == 0) color = vec4_mf(color, 0.5);
+			    else color = vec4_mf(color, 0.3);
 			}
 			else
 			{
-			    if(content->id % 2 == 0) color = v4_mf(color, 0.3);
-			    else color = v4_mf(color, 0.5);
+			    if(content->id % 2 == 0) color = vec4_mf(color, 0.3);
+			    else color = vec4_mf(color, 0.5);
 			}
 
 			rec2_draw(&content_rec, editor->camera.transform, canvas->z[layer_content_background], color);
@@ -973,11 +973,11 @@ struct Screen
 screen_new()
 {
 	struct Screen result = {0};
-	result.pos = V2_ZERO;
+	result.pos = VEC2_ZERO;
 	result.dim = SCREEN_DIM;
 
 	#if 0
-	result.rec = REC2(V2(0, HEIGHT/4), V2(WIDTH, HEIGHT-(HEIGHT/4)));
+	result.rec = REC2(VEC2(0, HEIGHT/4), VEC2(WIDTH, HEIGHT-(HEIGHT/4)));
 	#else
 	result.rec = REC2(result.pos, result.dim);
 	#endif
@@ -1034,24 +1034,24 @@ panel_cursor_draw(struct Panel *panel)
 	/* TODO: We need to find the exact char_width */
 	f32 char_width = 10;
 	f32 char_height = editor->font.height;
-	v2 cursor_dim = V2(char_width, char_height);
-	v2 offset = panel_line_offset_gen(panel, line);
+	Vec2 cursor_dim = VEC2(char_width, char_height);
+	Vec2 offset = panel_line_offset_gen(panel, line);
 
-	v2 start = V2_ZERO;
-	v2 end = V2_ZERO;
+	Vec2 start = VEC2_ZERO;
+	Vec2 end = VEC2_ZERO;
 
 	if(panel->pos.x == 0)
 	{
-		start = V2(0, 0);
-		end = v2_a(start, cursor_dim);
+		start = VEC2(0, 0);
+		end = vec2_a(start, cursor_dim);
 	}
 	else
 	{
 		if(panel->pos.c == EOL)
 		{
 			struct Content *content_last = line_content_get_last(line);
-			start = V2(content_last->rec.end.x, 0);
-			end = v2_a(start, cursor_dim);
+			start = VEC2(content_last->rec.end.x, 0);
+			end = vec2_a(start, cursor_dim);
 		}
 		else
 		{
@@ -1060,24 +1060,24 @@ panel_cursor_draw(struct Panel *panel)
 			if(panel->pos.i == 0)
 			{
 				struct Content *content_prev = line_content_get_previous(line, content_curr);
-				start = V2(content_prev->rec.end.x, 0);
-				end = v2_a(start, cursor_dim);
+				start = VEC2(content_prev->rec.end.x, 0);
+				end = vec2_a(start, cursor_dim);
 			}
 			else
 			{
 				/* NOTE: You cannot get the current character becaues it may not be typed yet! */
 				struct Rec2 *rec = &content_curr->visual[panel->pos.i-1].rec;
-				start = V2(content_curr->rec.start.x + rec->end.x, 0);
-				end = v2_a(start, cursor_dim);
+				start = VEC2(content_curr->rec.start.x + rec->end.x, 0);
+				end = vec2_a(start, cursor_dim);
 			}
 		}
 	}
 
-	start = v2_a(start, offset);
-	end = v2_a(end, offset);
+	start = vec2_a(start, offset);
+	end = vec2_a(end, offset);
 
 	struct Rec2 cursor = REC2(start, end);
-	rec2_draw(&cursor, editor->camera.transform, canvas->z[layer_cursor], V4_COLOR_RED);
+	rec2_draw(&cursor, editor->camera.transform, canvas->z[layer_cursor], VEC4_COLOR_RED);
 
 	/* TODO: Text */
 	//content_char_draw(pointer.content, panel->pos.i, editor->color_background);
@@ -1114,7 +1114,7 @@ position_update_prev_char(struct Position *pos, struct PositionPointer *ptr)
 
 	if(had_to_change_content)
 	{
-		ASSERT(ptr->content->char_count > 0);
+		DBG_ASSERT(ptr->content->char_count > 0);
 		pos->x = content_char_end(ptr->content)-1;
 		pos->c = ptr->content->id;
 		pos->i = ptr->content->char_count-1;
@@ -1202,7 +1202,7 @@ position_update_next_char(struct Position *pos, struct PositionPointer *ptr)
 void
 content_data_shift_left(struct Position *pos, u32 n)
 {
-	ASSERT(n == 1);
+	DBG_ASSERT(n == 1);
 
 	struct PositionPointer ptr = position_pointer_from_position(pos);
 	if((i32)ptr.content->char_count-1 - pos->i <= n) return;
@@ -1257,7 +1257,7 @@ panel_backspace(struct Panel *panel)
 }
 
 void
-panel_insert_char(struct Panel *panel, char c)
+panel_insert_char(struct Panel *panel, Char c)
 {
 	/* NOTE: This function uses a goto to make it easier to read */
 
@@ -1337,7 +1337,7 @@ void
 panel_screen_background_draw(struct Panel *panel)
 {
 	struct Screen *screen = &panel->screen;
-	v4 color = v4_mf(V4_COLOR_WHITE, 0.05);
+	Vec4 color = vec4_mf(VEC4_COLOR_WHITE, 0.05);
 	rec2_draw(&screen->rec, gl->projection_2d, canvas->z[layer_screen_background], color);
 }
 
@@ -1414,12 +1414,12 @@ void
 panel_bar_draw(struct Panel *panel)
 {
 	f32 reduce = -5;
-	struct Rec2 rec = REC2(V2(0, 0), V2(WIDTH, editor->font.height + reduce));
-	rec2_draw(&rec, gl->projection_2d, canvas->z[layer_bar_background], V4_COLOR_WHITE);
+	struct Rec2 rec = REC2(VEC2(0, 0), VEC2(WIDTH, editor->font.height + reduce));
+	rec2_draw(&rec, gl->projection_2d, canvas->z[layer_bar_background], VEC4_COLOR_WHITE);
 
 	/* Edit Mode */
 	cstr_draw(edit_mode_str_table[panel->edit_mode], EDIT_MODE_STR_SIZE,
-		  V2(0, 0), &editor->align_bar, canvas->z[layer_bar_text], V4_COLOR_BLACK);
+		  VEC2(0, 0), &editor->align_bar, canvas->z[layer_bar_text], VEC4_COLOR_BLACK);
 }
 
 void
@@ -1502,7 +1502,7 @@ editor_init(void)
 	editor->space_size = 10.0;
 	editor->tab_size = 8;
 
-	editor->color_background = v4_mf(V4_COLOR_WHITE, 0.8);
+	editor->color_background = vec4_mf(VEC4_COLOR_WHITE, 0.8);
 	gl_viewport_color_set(editor->color_background);
 	#if 1
 	editor->content_min = 128;
@@ -1513,11 +1513,11 @@ editor_init(void)
 	#endif
 
 	/* Camera */
-	camera_default_load(&editor->camera, 0, "main");
-	editor->camera.pos = V3(WIDTH/2, HEIGHT/2, 1);
+	camera_default_load(&editor->camera, 0, STR("main"));
+	editor->camera.pos = VEC3(WIDTH/2, HEIGHT/2, 1);
 	editor->camera.projection_type = camera_projection_orthographic;
 	editor->camera.zoom = 1.0;
-	camera_rot_set(&editor->camera, V3(-90, 0, 180));
+	camera_rot_set(&editor->camera, VEC3(-90, 0, 180));
 
 	/* Data */
 	/* Buffer */
@@ -1568,7 +1568,7 @@ panel_cursor_move_word_prev(struct Panel *panel, bool stop_at_token)
 		/* Special characters */
 		if(stop_at_token)
 		{
-			for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
+			for(u32 i = 0; i < ARRAY_COUNT(word_tokens_stop_at); ++i)
 			{
 				if(*pointer_prev.c == word_tokens_stop_at[i])
 				{
@@ -1586,15 +1586,15 @@ panel_cursor_move_word_prev(struct Panel *panel, bool stop_at_token)
 
 
 		/* Beginning of word */
-		if(char_is_alphanumeric(*pointer_curr.c) == false &&
-		   char_is_alphanumeric(*pointer_prev.c) == true)
+		if(char_is_alnum(*pointer_curr.c) == false &&
+		   char_is_alnum(*pointer_prev.c) == true)
 		{
 			panel->pos = pos_prev;
 			return;
 		}
 
 		/* Beginning of line */
-		if(pos_curr.x == 0 && char_is_alphanumeric(*pointer_curr.c))
+		if(pos_curr.x == 0 && char_is_alnum(*pointer_curr.c))
 		{
 			panel->pos = pos_curr;
 			return;
@@ -1628,15 +1628,15 @@ panel_cursor_move_word_next(struct Panel *panel, bool stop_at_token)
 		}
 
 		/* Beginning of line */
-		if(pos_curr.x == 0 && char_is_alphanumeric(*pointer_curr.c))
+		if(pos_curr.x == 0 && char_is_alnum(*pointer_curr.c))
 		{
 			panel->pos = pos_curr;
 			return;
 		}
 
 		/* Beginning of word */
-		if(char_is_alphanumeric(*pointer_curr.c) == true &&
-		   char_is_alphanumeric(*pointer_prev.c) == false)
+		if(char_is_alnum(*pointer_curr.c) == true &&
+		   char_is_alnum(*pointer_prev.c) == false)
 		{
 			panel->pos = pos_curr;
 			return;
@@ -1645,7 +1645,7 @@ panel_cursor_move_word_next(struct Panel *panel, bool stop_at_token)
 		/* Special characters */
 		if(stop_at_token)
 		{
-			for(u32 i = 0; i < COUNT(word_tokens_stop_at); ++i)
+			for(u32 i = 0; i < ARRAY_COUNT(word_tokens_stop_at); ++i)
 			{
 				if(*pointer_curr.c == word_tokens_stop_at[i])
 				{
@@ -1830,7 +1830,7 @@ buffer_write_path(struct Buffer *buffer, String path)
 		if(line->id != buffer->line_count-1) file_size += 1; /* newline */
 	}
 
-	char *file_data = mem_alloc(file_size, false);
+	CString file_data = mem_alloc(file_size, false);
 	Byte *at = (Byte *)file_data;
 
 	for(i32 line_id = 0; line_id < buffer->line_count; ++line_id)
@@ -1892,12 +1892,12 @@ buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 	u64 filesize = file_size(&file);
 	if(filesize == 0)
 	{
-		FATAL("This shouldn't be happening!\n");
+		DBG_FATAL("This shouldn't be happening!\n");
 		file_close(&file);
 		return(-1);
 	}
 
-	char *file_data = mem_alloc(filesize, false);
+	CString file_data = mem_alloc(filesize, false);
 
 	file_read(&file, file_data, filesize);
 	file_close(&file);
@@ -1915,7 +1915,7 @@ buffer_read_path(struct Buffer *buffer, String path, struct Panel *panel_out)
 	struct Panel panel = panel_new(buffer);
 	for(u32 i = 0; i < filesize; ++i)
 	{
-		char *at = &file_data[i];
+		Char *at = &file_data[i];
 
 		if(i >= filesize - 45)
 		{
@@ -2235,7 +2235,7 @@ panel_input(struct Panel *panel)
 			default:
 			{
 				/* Enter characters */
-				char c = ascii_from_key(key);
+				Char c = ascii_from_key(key);
 				if(c != '\0') panel_insert_char(panel, c);
 			}
 			}
@@ -2289,8 +2289,8 @@ editor_update(void)
 {
 	/* Debug */
 	#if BUILD_DEBUG
-	if(key_press(key_f9)) bool_toggle(&editor->draw_content_background);
-	if(key_press(key_f10)) bool_toggle(&editor->print_movement_info);
+	if(key_press(key_f9)) bool_toggle(editor->draw_content_background);
+	if(key_press(key_f10)) bool_toggle(editor->print_movement_info);
 	#endif
 
 	for(u32 i = 0; i < editor->window_count; ++i)
@@ -2303,7 +2303,7 @@ editor_update(void)
 void
 editor_draw(void)
 {
-	struct Rec2 cursor = REC2(V2_ZERO, SCREEN_DIM);
+	struct Rec2 cursor = REC2(VEC2_ZERO, SCREEN_DIM);
 	rec2_draw(&cursor, editor->camera.transform, canvas->z[layer_background], editor->color_background);
 
 	for(u32 i = 0; i < editor->window_count; ++i)
@@ -2313,8 +2313,8 @@ editor_draw(void)
 	}
 
 	#if 0
-	cstr_draw("TEST", 4, V2(200, 200), &editor->align_bar, canvas->z[layer_cursor], V4_COLOR_WHITE);
-	struct Rec2 rec = REC2(V2(200, 200), V2(300, 300));
-	rec2_draw(&rec, editor->camera.transform, canvas->z[layer_content_text], V4_COLOR_RED);
+	cstr_draw("TEST", 4, VEC2(200, 200), &editor->align_bar, canvas->z[layer_cursor], VEC4_COLOR_WHITE);
+	struct Rec2 rec = REC2(VEC2(200, 200), VEC2(300, 300));
+	rec2_draw(&rec, editor->camera.transform, canvas->z[layer_content_text], VEC4_COLOR_RED);
 	#endif
 }

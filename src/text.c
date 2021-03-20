@@ -23,7 +23,7 @@ text_width(CString text, struct Asset_Font *font)
 
 void
 cstr_draw_full(struct Asset_Font *font, CString text, u32 len,
-	       v2 pos, struct Alignment *alignment, mat4 mat_view, f32 z, v4 color)
+	       Vec2 pos, struct Alignment *alignment, Mat4 mat_view, f32 z, Vec4 color)
 {
 	/* Horizontal Alignment */
 	f32 width = text_width(text, font);
@@ -46,10 +46,10 @@ cstr_draw_full(struct Asset_Font *font, CString text, u32 len,
 	gl_program_bind(program->handle);
 
 	gl_uniform_mat4(program->location_mvp, mat_view);
-	gl_uniform_v4(program->location_color, color);
+	gl_uniform_vec4(program->location_color, color);
 
 	u32 codepoint_previous = 0;
-	for(Index i = 0; i < len && text[i] != '\0'; ++i)
+	for(i32 i = 0; i < len && text[i] != '\0'; ++i)
 	{
 		u32 codepoint = text[i];
 
@@ -59,21 +59,21 @@ cstr_draw_full(struct Asset_Font *font, CString text, u32 len,
 		struct GL_Texture texture = font_glyph_texture_get(font, codepoint);
 		gl_texture_bind(&texture, GL_TEXTURE_2D);
 
-		v2 baseline_align = font_glyph_alignment_get(font, codepoint);
-		baseline_align = v2_m(baseline_align, V2(texture.image.width, texture.image.height));
+		Vec2 baseline_align = font_glyph_alignment_get(font, codepoint);
+		baseline_align = vec2_m(baseline_align, VEC2(texture.image.width, texture.image.height));
 
-		v2 render_pos = v2_s(pos, baseline_align);
+		Vec2 render_pos = vec2_s(pos, baseline_align);
 
-		v2 min, max;
+		Vec2 min, max;
 		min = render_pos;
-		max = v2_a(render_pos, V2(texture.image.width, texture.image.height));
+		max = vec2_a(render_pos, VEC2(texture.image.width, texture.image.height));
 
 		struct Rec2 rec = REC2(min, max);
 		struct Box2 box = box2_from_rec2(rec);
 
-		v3 pos = V3(box.pos.x, box.pos.y, z);
-		v3 dim = V3(box.dim.x, box.dim.y, 0.0);
-		mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, V3_ZERO));
+		Vec3 pos = VEC3(box.pos.x, box.pos.y, z);
+		Vec3 dim = VEC3(box.dim.x, box.dim.y, 0.0);
+		Mat4 mvp = mat4_m(mat_view, mat4_transform3(pos, dim, VEC3_ZERO));
 		gl_uniform_mat4(program->location_mvp, mvp);
 
 		u32 triangle_count = 2;
@@ -87,8 +87,9 @@ cstr_draw_full(struct Asset_Font *font, CString text, u32 len,
 }
 
 void
-v3_draw_full(struct Asset_Font *font,
-	     v3 vec, CString s, v2 pos, struct Alignment *alignment, mat4 mat_view, f32 z, v4 color)
+vec3_draw_full(struct Asset_Font *font,
+	       Vec3 vec, CString s, Vec2 pos, struct Alignment *alignment,
+	       Mat4 mat_view, f32 z, Vec4 color)
 {
 	#define BUFFER_MAX 256
 

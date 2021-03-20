@@ -8,7 +8,6 @@ bool content_is_empty(struct Content *content);
 bool content_is_full(struct Content *content);
 
 /* Line */
-//char *line_contet_char_get_next(struct Line *line, u32 content_id);
 struct Content *line_content_get_by_id(struct Line *line, i32 content_id);
 struct Content *line_content_get_by_char_pos(struct Line *line, u32 char_pos);
 struct Content *line_content_get_first(struct Line *line);

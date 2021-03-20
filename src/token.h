@@ -20,31 +20,34 @@ enum TokenKind
 	token_variable,
 	token_variable_declaration,
 
+	token_number,
+
 	token_i8,
 	token_i16,
 	token_i32,
 	token_i64,
+
 	token_f32,
 	token_f64,
 
-	token_number,
+	token_comment_line,
+	token_string, /* TODO: Remove */
 
-	token_string,
+	/* These can be multilined and are pushed to the buffer tokens */
 	token_string_start,
 	token_string_end,
 
-	token_comment,
-	token_comment_start,
-	token_comment_end,
+	token_comment_open,
+	token_comment_close,
 
-	token_brackets_start,
-	token_brackets_end,
+	token_brackets_open,
+	token_brackets_close,
 
-	token_braces_start,
-	token_braces_end,
+	token_braces_open,
+	token_braces_close,
 
-	token_parenthesis_start,
-	token_parenthesis_end,
+	token_parenthesis_open,
+	token_parenthesis_close,
 
 	token_count,
 };

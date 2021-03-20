@@ -34,7 +34,7 @@ struct Content
 	/* NOTE: We have different sizes because this structure can split in two */
 	u32 size;
 	u32 size_alloc;
-	char *data;
+	Char *data;
 	struct Visual *visual; /* Allocation combined with *data */
 	struct Rec2 rec;
 
@@ -94,7 +94,7 @@ struct PositionPointer
 	struct Buffer *buffer;
 	struct Line *line;
 	struct Content *content;
-	char *c;
+	Char *c;
 };
 
 enum EditMode
@@ -119,8 +119,8 @@ struct Range
 struct Screen
 {
 	/* Data about the area that is visible */
-	v2 pos; /* V2(0, 0) is the top left corner */
-	v2 dim;
+	Vec2 pos; /* V2(0, 0) is the top left corner */
+	Vec2 dim;
 
 	struct Rec2 rec;
 };
@@ -148,7 +148,7 @@ struct Window
 };
 
 #define EDIT_MODE_STR_SIZE 20
-char edit_mode_str_table[edit_mode_count][EDIT_MODE_STR_SIZE] =
+Char edit_mode_str_table[edit_mode_count][EDIT_MODE_STR_SIZE] =
 {
 	[edit_mode_normal]      = "Normal",
 	[edit_mode_command]     = "Command",
@@ -195,7 +195,7 @@ struct Editor
 	f32 space_size;
 	u32 tab_size;
 
-	v4 color_background;
+	Vec4 color_background;
 
 	u32 content_min;
 	u32 content_max;
@@ -208,7 +208,7 @@ struct Editor
 struct Editor *editor;
 
 /* FUNCTIONS */
-void cstr_draw(char *text, u32 len, v2 pos, struct Alignment *align, f32 z, v4 color);
+void cstr_draw(CString text, u32 len, Vec2 pos, struct Alignment *align, f32 z, Vec4 color);
 struct PositionPointer position_pointer_from_position(struct Position *position);
 
 void position_update_next_char(struct Position *pos, struct PositionPointer *ptr);

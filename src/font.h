@@ -8,7 +8,7 @@ struct Font_Glyph
 	//Image bitmap;
 	struct GL_Texture texture;
 
-	v2 align_percentage;
+	Vec2 align_percentage;
 };
 
 struct Font_Info
@@ -37,10 +37,10 @@ struct Asset_Font
 	u32 height;
 };
 
-int font_init(struct Asset_Font *font, char *TTFFileName, char *FontName, u32 PixelHeight, char *charset_name);
+int font_init(struct Asset_Font *font, CString TTFFileName, CString FontName, u32 PixelHeight, CString charset_name);
 void font_free(struct Asset_Font *font);
 f32 font_kerning_get(struct Asset_Font *font, u32 codepoint, u32 codepoint_previous);
 Image font_glyph_bitmap_get(struct Asset_Font *font, u32 codepoint);
-v2 font_glyph_alignment_get(struct Asset_Font *font, u32 codepoint);
+Vec2 font_glyph_alignment_get(struct Asset_Font *font, u32 codepoint);
 
 #endif /* _FONT_H */

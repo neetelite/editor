@@ -71,7 +71,7 @@ content_is_full(struct Content *content)
 struct Content *
 line_content_get_by_id(struct Line *line, i32 content_id)
 {
-	ASSERT(line != NULL);
+	DBG_ASSERT(line != NULL);
 
 	if(line->content_count == 0 ||
 	   content_id < 0 ||
@@ -162,7 +162,7 @@ line_content_get_next(struct Line *line, struct Content *content)
 struct Content *
 line_content_get_by_char_pos(struct Line *line, u32 char_pos)
 {
-	ASSERT(line != NULL);
+	DBG_ASSERT(line != NULL);
 	if(line->contents == NULL) return(NULL);
 	if(line->char_count <= char_pos) return(NULL);
 
@@ -283,7 +283,7 @@ position_line_get_next(struct Panel *panel)
 struct Line *
 buffer_line_get_by_id(struct Buffer *buffer, i32 line_id)
 {
-	ASSERT(buffer != NULL);
+	DBG_ASSERT(buffer != NULL);
 
 	if(buffer->line_count == 0 ||
 	   line_id < 0 ||
@@ -301,7 +301,7 @@ buffer_line_get_by_id(struct Buffer *buffer, i32 line_id)
 struct Buffer *
 editor_buffer_get_by_id(i32 buffer_id)
 {
-	ASSERT(buffer_id < editor->buffer_count);
+	DBG_ASSERT(buffer_id < editor->buffer_count);
 
 	struct Buffer *result = NULL;
 	result = &editor->buffers[buffer_id];
@@ -311,7 +311,7 @@ editor_buffer_get_by_id(i32 buffer_id)
 struct Panel *
 window_panel_get_by_id(struct Window *window, u32 panel_id)
 {
-	ASSERT(panel_id < window->panel_count);
+	DBG_ASSERT(panel_id < window->panel_count);
 
 	struct Panel *result = NULL;
 	result = &window->panels[panel_id];

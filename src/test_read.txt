@@ -3,7 +3,7 @@ text_width(CString text, struct Asset_Font *font)
 {
 	/* TODO(lungu): Crash when text is null string */
 
-	char *string_test = "this is a test";
+	CString string_test = "this is a test";
 	f32 result = 0.0;
 
 	u32 codepoint_previous = 0;
@@ -93,7 +93,7 @@ v3_draw_full(struct Asset_Font *font,
 {
 	#define BUFFER_MAX 256
 
-	char text[BUFFER_MAX];
+	Char text[BUFFER_MAX];
 	snprintf(text, BUFFER_MAX, "%s x: %-12f y: %-12f z: %-12f", s, vec.x, vec.y, vec.z);
 
 	cstr_draw_full(font, text, BUFFER_MAX, pos, alignment, mat_view, z, color);

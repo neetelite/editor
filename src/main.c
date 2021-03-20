@@ -7,7 +7,7 @@
 
 #define WIDTH os_context.dim.width
 #define HEIGHT os_context.dim.height
-#define SCREEN_DIM V2(WIDTH, HEIGHT)
+#define SCREEN_DIM VEC2(WIDTH, HEIGHT)
 
 #define FPS_MAX 60
 
@@ -97,7 +97,7 @@ main(void)
 	file_close(&project_file);
 
 	/* Window */
-	char *window_name = "DEV | Social";
+	CString window_name = "DEV | Social";
 	//os_window_create(1920, 1080, window_name);
 	os_window_create(1600, 900, window_name);
 	//os_window_create(1080, 720, window_name);

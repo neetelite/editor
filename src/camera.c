@@ -31,7 +31,7 @@ void
 camera_dir_update(struct Camera *camera)
 {
 	/* Updates camera->dir based on camera->rot */
-	v3 rot = v3_rad_from_deg(camera->rot);
+	Vec3 rot = vec3_rad_from_deg(camera->rot);
 
 	#if defined(Z_UP_RH)
 	/* TODO(lungu): Both of these should be positive */
@@ -52,48 +52,48 @@ camera_dir_update(struct Camera *camera)
 	camera->dir.x = cos_pit * sin_yaw;
 	camera->dir.y = cos_pit * cos_yaw;
 	camera->dir.z = sin_pit;
-	camera->n = v3_inv(camera->dir);
+	camera->n = vec3_inv(camera->dir);
 	#elif defined(Y_UP_RH)
 	#if 0
 	camera->n.x = cos_pit * sin_yaw;
 	camera->n.y = -sin_pit;
 	camera->n.z = cos_pit * cos_yaw;
-	camera->dir = v3_inv(camera->n);
+	camera->dir = vec3_inv(camera->n);
 	#else
 	/* LEARN NOTE(lungu): -cos_pit is needed here to lock it or something,
 	   does dir.y need a a yaw too?? */
 	camera->dir.x = -cos_pit*-sin_yaw;
 	camera->dir.y = sin_pit;
 	camera->dir.z = -cos_pit * -cos_yaw;
-	camera->n = v3_inv(camera->dir);
+	camera->n = vec3_inv(camera->dir);
 	#endif
 	#endif
 
 	/* Get UVN */
-	camera->v = V3_UP;
-	camera->u = v3_cross(camera->v, camera->n);
-	camera->v = v3_cross(camera->n, camera->u);
+	camera->v = VEC3_UP;
+	camera->u = vec3_cross(camera->v, camera->n);
+	camera->v = vec3_cross(camera->n, camera->u);
 
 	/* Normalize */
-	camera->u = v3_norm(camera->u);
-	camera->v = v3_norm(camera->v);
-	camera->n = v3_norm(camera->n);
+	camera->u = vec3_norm(camera->u);
+	camera->v = vec3_norm(camera->v);
+	camera->n = vec3_norm(camera->n);
 }
 
 void
-camera_pos_set(struct Camera *camera, v3 pos)
+camera_pos_set(struct Camera *camera, Vec3 pos)
 {
 	camera->pos = pos;
 }
 
 void
-camera_tar_set(struct Camera *camera, v3 tar)
+camera_tar_set(struct Camera *camera, Vec3 tar)
 {
 	camera->tar = tar;
 }
 
 void
-camera_rot_set(struct Camera *camera, v3 rot)
+camera_rot_set(struct Camera *camera, Vec3 rot)
 {
 	camera->rot = rot;
 	camera_dir_update(camera);
@@ -101,14 +101,14 @@ camera_rot_set(struct Camera *camera, v3 rot)
 
 #if 0
 void
-camera_dir_set(struct Camera *camera, v3 dir)
+camera_dir_set(struct Camera *camera, Vec3 dir)
 {
 }
 #endif
 
 void
-camera_load(struct Camera *camera, u32 id, char *name,
-	    v3 pos, v3 tar, v3 rot,
+camera_load(struct Camera *camera, u32 id, String name,
+	    Vec3 pos, Vec3 tar, Vec3 rot,
 	    f32 fov_h, f32 fov_v, f32 zoom,
 	    f32 nc, f32 fc,
 	    enum CameraProjection projection, bool locked)
@@ -116,7 +116,7 @@ camera_load(struct Camera *camera, u32 id, char *name,
 	/* Camera 0 */
 	camera->id = id;
 
-	if(camera->name) mem_free(camera->name);
+	if(camera->name.data) str_free(&camera->name);
 	camera->name = name;
 
 	camera->pos = pos;
@@ -140,19 +140,19 @@ camera_load(struct Camera *camera, u32 id, char *name,
 }
 
 void
-camera_default_load(struct Camera *camera, u32 id, char *name)
+camera_default_load(struct Camera *camera, u32 id, String name)
 {
 	camera_load(camera, id, name,
-		    V3_ZERO, V3_FRONT, V3_ZERO, /* pos, tar , rot */
+		    VEC3_ZERO, VEC3_FRONT, VEC3_ZERO, /* pos, tar , rot */
 		    90.0f, 90.0f, 1.0, /* fov_h, fov_v, zoom, */
 		    0.000001f, 2.0f,  /* nc, fc, */
 		    camera_projection_perspective, true);  /* persps, locked */
 }
 
-mat4
+Mat4
 camera_mat_pos(struct Camera *camera)
 {
-	mat4 result = MAT4
+	Mat4 result = MAT4
 		(
 			1, 0, 0, -camera->pos.x,
 			0, 1, 0, -camera->pos.y,
@@ -163,10 +163,10 @@ camera_mat_pos(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_rot(struct Camera *camera)
 {
-	mat4 result = MAT4
+	Mat4 result = MAT4
 		(
 			camera->u.x, camera->u.y, camera->u.z, 0,
 			camera->v.x, camera->v.y, camera->v.z, 0,
@@ -177,45 +177,45 @@ camera_mat_rot(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_view_forward_gen(struct Camera *camera)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
-	mat4 mat_pos = camera_mat_pos(camera);
-	mat4 mat_rot = camera_mat_rot(camera);
+	Mat4 mat_pos = camera_mat_pos(camera);
+	Mat4 mat_rot = camera_mat_rot(camera);
 	result = mat4_m(mat_rot, mat_pos);
 
 	return(result);
 }
 
-mat4
+Mat4
 //camera_mat_view_backward_gen(struct Camera *camera)
 camera_mat_view_backward_gen(void)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_view_forward(struct Camera *camera)
 {
-	mat4 result = camera->view.forward;
+	Mat4 result = camera->view.forward;
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_view_backward(struct Camera *camera)
 {
-	mat4 result = camera->view.backward;
+	Mat4 result = camera->view.backward;
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_perspective_forward_gen(struct Camera *camera)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
 	f64 fov_h = 1.0 / f32_tan(f32_rad_from_deg(camera->fov_h) / 2);
 	f64 fov_v = 1.0 / f32_tan(f32_rad_from_deg(camera->fov_v) / 2);
@@ -245,10 +245,10 @@ camera_mat_projection_perspective_forward_gen(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_perspective_backward_gen(struct Camera *camera)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
 	f64 fov_h = 1.0 / f32_tan(f32_rad_from_deg(camera->fov_h) / 2);
 	f64 fov_v = 1.0 / f32_tan(f32_rad_from_deg(camera->fov_v) / 2);
@@ -279,10 +279,10 @@ camera_mat_projection_perspective_backward_gen(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_orthographic_forward_gen(struct Camera *camera)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
 	f32 z = camera->zoom / ZOOM_MUL;
 	f32 n = camera->near_clip;
@@ -310,10 +310,10 @@ camera_mat_projection_orthographic_forward_gen(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_orthographic_backward_gen(struct Camera *camera)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
 	f32 z = camera->zoom / ZOOM_MUL;
 	f32 n = camera->near_clip;
@@ -341,10 +341,10 @@ camera_mat_projection_orthographic_backward_gen(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_forward_gen(struct Camera *camera)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
 	if(camera->projection_type == camera_projection_perspective)
 	{
@@ -358,10 +358,10 @@ camera_mat_projection_forward_gen(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_backward_gen(struct Camera *camera)
 {
-	mat4 result = MAT4_ZERO;
+	Mat4 result = MAT4_ZERO;
 
 	if(camera->projection_type == camera_projection_perspective)
 	{
@@ -375,17 +375,17 @@ camera_mat_projection_backward_gen(struct Camera *camera)
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_forward(struct Camera *camera)
 {
-	mat4 result = camera->projection.forward;
+	Mat4 result = camera->projection.forward;
 	return(result);
 }
 
-mat4
+Mat4
 camera_mat_projection_backward(struct Camera *camera)
 {
-	mat4 result = camera->projection.backward;
+	Mat4 result = camera->projection.backward;
 	return(result);
 }
 

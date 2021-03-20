@@ -1,7 +1,7 @@
 void
 language_keyword_init(struct Language *language, u32 max)
 {
-	ASSERT(language->keyword_max == 0);
+	DBG_ASSERT(language->keyword_max == 0);
 	language->keyword_max = max;
 	language->keywords = mem_alloc(max*sizeof(*language->keywords), false);
 }

@@ -3,7 +3,7 @@
 
 typedef struct GlyphResult
 {
-	v2  align_percentage;
+	Vec2  align_percentage;
 	f32 kerning_change;
 	f32 char_advance;
 
@@ -21,7 +21,7 @@ typedef struct CodepointMask
 
 
 internal i32
-glyph_load(GlyphResult *result, stbtt_fontinfo *font_info,  u32 codepoint, v2 max_glyph_dim,
+glyph_load(GlyphResult *result, stbtt_fontinfo *font_info,  u32 codepoint, Vec2 max_glyph_dim,
 	   f32 scale, void *memory_out)
 {
 	i32 width, height, offset_x, offset_y;
@@ -30,7 +30,7 @@ glyph_load(GlyphResult *result, stbtt_fontinfo *font_info,  u32 codepoint, v2 ma
 						&width, &height, &offset_x, &offset_y);
 
 	f32 kerning_change = 0;
-	v2 align_percentage = {0.5f, 0.5f};
+	Vec2 align_percentage = VEC2(0.5f, 0.5f);
 	f32 char_advance = 0;
 
 	if(!(((width > 0) && (width <= (max_glyph_dim.x - 2))) &&
@@ -80,7 +80,7 @@ glyph_load(GlyphResult *result, stbtt_fontinfo *font_info,  u32 codepoint, v2 ma
 
 	kerning_change = (f32)LSB * scale;
 
-	align_percentage = V2(1.0f / (f32)out_width,
+	align_percentage = VEC2(1.0f / (f32)out_width,
 				(1.0f + (f32)(offset_y + height)) / (f32)out_height);
 
 	// TODO(michiel): Move the allocation to the outside code and use MakeCodepointBitmap instead
@@ -95,10 +95,10 @@ glyph_load(GlyphResult *result, stbtt_fontinfo *font_info,  u32 codepoint, v2 ma
 
 internal i32
 font_extract(struct Asset_Font *font,
-	     char *filename, char *font_name, u32 font_size,
+	     CString filename, CString font_name, u32 font_size,
 	     CodepointMask *codepoint_mask)
 {
-	char path[PATH_MAX];
+	Char path[PATH_MAX];
 	snprintf(path, PATH_MAX, "%s%s%s", os_state.path_data, "font/", filename);
 
 	struct Font_Info *info = &font->info;
@@ -156,7 +156,7 @@ font_extract(struct Asset_Font *font,
 	i32 min_x, min_y, max_x, max_y;
 	stbtt_GetFontBoundingBox(font_info, &min_x, &min_y, &max_x, &max_y);
 
-	v2 max_glyph_dim = V2(font_size + 2, font_size + 2);
+	Vec2 max_glyph_dim = VEC2(font_size + 2, font_size + 2);
 
 	void *memory_out = mem_alloc(max_glyph_dim.x * max_glyph_dim.y * sizeof(u32), true);
 
@@ -274,7 +274,7 @@ internal void
 font_codepoint_include(CodepointMask *mask, u32 E0)
 {
 	u32 E[] = {E0};
-	for(u32 i = 0; i < COUNT(E); ++i)
+	for(u32 i = 0; i < ARRAY_COUNT(E); ++i)
 	{
 		u32 codepoint = E[i];
 		if(codepoint)
@@ -320,8 +320,8 @@ CHAR_SET_CREATOR(ascii)
 
 typedef struct FontCharsetCreateArgs
 {
-	char *name;
-	char *description;
+	CString name;
+	CString description;
 	FontCharsetCreateFunc *function;
 } FontCharsetCreateArgs;
 
@@ -331,8 +331,8 @@ global FontCharsetCreateArgs charset_table[] =
 };
 
 i32
-font_init(struct Asset_Font *font, char *filename,
-	  char *font_name, u32 font_height, char *charset_name)
+font_init(struct Asset_Font *font, CString filename,
+	  CString font_name, u32 font_height, CString charset_name)
 {
 	/* NOTE: Examples */
 	// "c:/Windows/Fonts/arial.ttf", "Arial", 128
@@ -342,7 +342,7 @@ font_init(struct Asset_Font *font, char *filename,
 
 	FontCharsetCreateArgs *args = 0;
 
-	for(u32 i = 0; i < COUNT(charset_table); ++i)
+	for(u32 i = 0; i < ARRAY_COUNT(charset_table); ++i)
 	{
 	FontCharsetCreateArgs *test = charset_table+ i;
 	if(strcmp(test->name, charset_name) == 0)
@@ -472,7 +472,7 @@ font_glyph_id_get(struct Asset_Font *font, u32 codepoint)
 	if(codepoint < info->codepoint_max_plus_one)
 	{
 		result = font->unicode_map[codepoint];
-		ASSERT(result < info->glyph_count);
+		DBG_ASSERT(result < info->glyph_count);
 	}
 	return(result);
 }
@@ -511,11 +511,11 @@ font_glyph_texture_get(struct Asset_Font *font, u32 codepoint)
 	return(result);
 }
 
-v2
+Vec2
 font_glyph_alignment_get(struct Asset_Font *font, u32 codepoint)
 {
 	u32 id = font_glyph_id_get(font, codepoint);
-	v2 result = font->glyphs[id].align_percentage;
+	Vec2 result = font->glyphs[id].align_percentage;
 
 	return(result);
 }
@@ -568,8 +568,8 @@ font_load(AppAssets *assets, FontId font_id)
 		{
 			struct Font_Glyph *glyph = font->glyphs + i;
 
-			ASSERT(glyph->codepoint < font->codepoint_max_plus_one);
-			ASSERT((u32)(u16)i == i);
+			DBG_ASSERT(glyph->codepoint < font->codepoint_max_plus_one);
+			DBG_ASSERT((u32)(u16)i == i);
 			font->unicode_map[glyph->codepoint] = (u16)i;
 		}
 

@@ -76,8 +76,8 @@ gl_init(void)
 
 	/* TODO(lungu): Depth test doesn't work sometimes, it has to do with the graphics card it's using */
 
-	gl_viewport_rec_set(V4(0, 0, os_context.dim.x, os_context.dim.y));
-	gl_viewport_color_set(v4_mf(V4_COLOR_WHITE, 0.05));
+	gl_viewport_rec_set(VEC4(0, 0, os_context.dim.x, os_context.dim.y));
+	gl_viewport_color_set(vec4_mf(VEC4_COLOR_WHITE, 0.05));
 
 	/* Programs */
 	gl_program_text();

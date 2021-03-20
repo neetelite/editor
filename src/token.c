@@ -24,7 +24,6 @@ read_token_comment(struct Position *pos_in, struct PositionPointer *ptr_in)
 	struct PositionPointer ptr = *ptr_in;
 
 	struct Token token = {0};
-	token.kind = token_comment;
 	token.pos = pos.x;
 
 	position_update_next_char(&pos, &ptr);
@@ -34,6 +33,7 @@ read_token_comment(struct Position *pos_in, struct PositionPointer *ptr_in)
 	{
 		/* Line comment */
 		token.len = ptr.line->char_count - token.pos;
+		token.kind = token_comment_line;
 		line_token_push(ptr_in->line, &token);
 
 		pos.x = ptr.line->char_count;
@@ -62,6 +62,7 @@ read_token_comment(struct Position *pos_in, struct PositionPointer *ptr_in)
 		}
 
 		token.len = pos.x - token.pos;
+		token.kind = token_comment_open;
 		line_token_push(ptr_in->line, &token);
 	}
 	else
@@ -120,7 +121,7 @@ read_token_identifier(struct Position *pos_in, struct PositionPointer *ptr_in)
 		position_update_next_char(&pos, &ptr);
 		len += 1;
 		if(ptr.c == NULL || line->id != ptr.line->id ||
-		   (!char_is_alphanumeric(*ptr.c) && *ptr.c != '_'))
+		   (!char_is_alnum(*ptr.c) && *ptr.c != '_'))
 		{
 			break;
 		}

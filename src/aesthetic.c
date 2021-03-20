@@ -6,25 +6,27 @@ aesthetics_init(void)
 		struct Aesthetic *aes = &aesthetics[i];
 		switch(i)
 		{
-		case token_comment:
+		case token_comment_line:
+		case token_comment_open:
+		case token_comment_close:
 		{
-			aes->foreground = v4_mf(V4_COLOR_WHITE, 0.2);
+			aes->foreground = vec4_mf(VEC4_COLOR_WHITE, 0.2);
 		} break;
 		case token_string:
 		{
-			aes->foreground = V4_COLOR_GREEN;
+			aes->foreground = VEC4_COLOR_GREEN;
 		} break;
 		case token_number:
 		{
-			aes->foreground = V4_COLOR_YELLOW;
+			aes->foreground = VEC4_COLOR_CYAN;
 		} break;
 		case token_keyword:
 		{
-			aes->foreground = V4_COLOR_RED;
+			aes->foreground = VEC4_COLOR_RED;
 		} break;
 		case token_type:
 		{
-			aes->foreground = V4_COLOR_BLUE;
+			aes->foreground = VEC4_COLOR_BLUE;
 		} break;
 		}
 	}

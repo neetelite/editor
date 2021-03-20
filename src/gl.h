@@ -27,7 +27,7 @@ struct GL
 	struct GL_ProgramQuad program_quad;
 	struct GL_ProgramTexture program_texture;
 
-	mat4 projection_2d;
+	Mat4 projection_2d;
 };
 
 struct GL *gl;
