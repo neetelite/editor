@@ -9,19 +9,13 @@
 #define HEIGHT os_context.dim.height
 #define SCREEN_DIM VEC2(WIDTH, HEIGHT)
 
-#define FPS_MAX 60
-
 #ifdef OS_LINUX
 #include <linux/limits.h>
 #endif
 
-#include "../../library/standard.h"
 #include "../../library/base.h"
 #include "../../library/platform.h"
 #include "../../library/graphics.h"
-
-#define LOADER_WHITELIST
-#define LOADER_LIST_OBJ
 
 #include "include.h"
 
@@ -109,9 +103,10 @@ main(void)
 	/* Graphics */
 	os_opengl_init();
 
-	/* Timer */
-	//struct TimeLimiter limiter = {0};
-	//time_limiter_init(&limiter, TIME_NS_FROM_S(1) / FPS_MAX);
+	/* Time */
+	time_init();
+	struct TimeLimiter limiter = {0};
+	time_limiter_init(&limiter, 60);
 
 	/* Input */
 	os_input_init();
@@ -123,9 +118,8 @@ main(void)
 		app_main();
 		os_render();
 
-		/* TIMER TODO */
-		//time_limiter_tick(&limiter);
-		//os_state.dt = limiter.dt_s;
+		time_limiter_tick(&limiter);
+		os_state.dt = limiter.dt_last;
 	}
 
 	os_memory_free();

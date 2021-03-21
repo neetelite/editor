@@ -3,9 +3,7 @@ void
 gl_program_text()
 {
 	struct GL_ProgramText *program = &gl->program_text;
-	struct GL_Shader shaders_text[2] = {GL_SHADER_VERTEX, "quad.vs", GL_SHADER_FRAGMENT, "text.fs"};
-	program->handle = gl_program_create(shaders_text, 2);
-
+	program->handle = gl_program_load(STR("text.glsl"));
 	program->location_mvp = gl_uniform_location(program->handle, "u_mvp");
 	program->location_color = gl_uniform_location(program->handle, "u_color");
 }
@@ -14,23 +12,10 @@ void
 gl_program_quad(void)
 {
 	struct GL_ProgramQuad *program = &gl->program_quad;
-	struct GL_Shader shaders_quad[2] = {GL_SHADER_VERTEX, "quad.vs", GL_SHADER_FRAGMENT, "quad_color.fs"};
-	program->handle = gl_program_create(shaders_quad, 2);
-
+	program->handle = gl_program_load(STR("quad.glsl"));
 	program->location_mvp = gl_uniform_location(program->handle, "u_mvp");
 	program->location_rec = gl_uniform_location(program->handle, "u_rec");
 	program->location_color = gl_uniform_location(program->handle, "u_color");
-}
-
-void
-gl_program_texture(void)
-{
-	struct GL_ProgramTexture *program = &gl->program_texture;
-	struct GL_Shader shaders_texture[2] = {GL_SHADER_VERTEX, "quad.vs", GL_SHADER_FRAGMENT, "quad_texture.fs"};
-	program->handle = gl_program_create(shaders_texture, 2);
-
-	program->location_mvp = gl_uniform_location(program->handle, "u_mvp");
-	program->location_rec = gl_uniform_location(program->handle, "u_rec");
 }
 
 void
@@ -82,7 +67,6 @@ gl_init(void)
 	/* Programs */
 	gl_program_text();
 	gl_program_quad();
-	gl_program_texture();
 	gl_projection_2d();
 
 	gl_enable(GL_TEXTURE_2D);
